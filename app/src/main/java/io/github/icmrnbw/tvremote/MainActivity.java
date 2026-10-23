@@ -2,6 +2,8 @@ package io.github.icmrnbw.tvremote;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -361,10 +363,41 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
                 .setTitle("Not an Android TV")
                 .setMessage("This device at " + device.ip + " looks like:\n\n" + device.describe()
                         + "\n\nThis app controls Android TV / Google TV only. If this is your TV, "
-                        + "send this text to Claude so the app can be adapted to it.")
-                .setPositiveButton("Try anyway", (d, w) -> connect(device.ip))
+                        + "tap “Check this TV” and send the result to Claude so the app can be adapted to it.")
+                .setPositiveButton("Check this TV", (d, w) -> inspect(device))
+                .setNeutralButton("Try anyway", (d, w) -> connect(device.ip))
                 .setNegativeButton("Back", (d, w) -> showTvPicker())
                 .show();
+    }
+
+    private void inspect(NetworkScanner.Device device) {
+        TextView text = new TextView(this);
+        text.setPadding(dp(24), dp(16), dp(24), dp(16));
+        text.setTextIsSelectable(true);
+        text.setText("Checking " + device.ip + "… this takes up to a minute. Keep the app open.");
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(text);
+        String[] result = new String[1];
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("TV check")
+                .setView(scroll)
+                .setPositiveButton("Copy", null)
+                .setNegativeButton("Close", null)
+                .show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            if (result[0] == null) return;
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            clipboard.setPrimaryClip(ClipData.newPlainText("TV check", result[0]));
+            ((Button) v).setText("Copied");
+        });
+        new Thread(() -> {
+            String report = NetworkScanner.inspect(device, percent ->
+                    ui.post(() -> text.setText("Checking " + device.ip + "… " + percent + "%")));
+            ui.post(() -> {
+                result[0] = report;
+                text.setText(report + "\nTap Copy and paste this to Claude.");
+            });
+        }, "tv-inspect").start();
     }
 
     private interface Found {
@@ -458,7 +491,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
 
         root.addView(gap(16));
         LinearLayout top = row();
-        top.addView(key("⏻", KeyEvent.KEYCODE_POWER, ROSSO, false), weight());
+        top.addView(key("Power", KeyEvent.KEYCODE_POWER, ROSSO, false), weight());
         top.addView(key("Input", KeyEvent.KEYCODE_TV_INPUT, BUTTON, false), weight());
         top.addView(key("Mute", KeyEvent.KEYCODE_VOLUME_MUTE, BUTTON, false), weight());
         top.addView(key("⚙", KeyEvent.KEYCODE_SETTINGS, BUTTON, false), weight());

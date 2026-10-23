@@ -1,6 +1,10 @@
 package io.github.icmrnbw.tvremote.protocol;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Inet4Address;
@@ -22,6 +26,9 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Finds TVs on the local network without relying on mDNS: probes every address in the
@@ -34,6 +41,8 @@ public final class NetworkScanner {
         public final String ip;
         public final Set<String> kinds = new LinkedHashSet<>();
         public String upnpServer;
+        public String upnpLocation;
+        public final Set<String> upnpTypes = new LinkedHashSet<>();
 
         Device(String ip) { this.ip = ip; }
 
@@ -165,6 +174,10 @@ public final class NetworkScanner {
                 Device d = device(found, reply.getAddress().getHostAddress());
                 synchronized (d) {
                     if (d.upnpServer == null) d.upnpServer = server;
+                    String location = header(text, "location");
+                    if (d.upnpLocation == null && location != null) d.upnpLocation = location;
+                    String type = header(text, "st");
+                    if (type != null) d.upnpTypes.add(type);
                     String hint = platformHint(server);
                     if (hint != null) d.kinds.add(hint);
                 }
@@ -173,6 +186,84 @@ public final class NetworkScanner {
         } catch (IOException ignored) {
             // Multicast blocked on this network; the port scan still runs.
         }
+    }
+
+    public interface PortProgress {
+        void onProgress(int percent);
+    }
+
+    /**
+     * A detailed look at one device, for working out what a TV runs: its UPnP description
+     * and every open TCP port. Takes up to a minute.
+     */
+    public static String inspect(Device device, PortProgress progress) {
+        StringBuilder report = new StringBuilder();
+        report.append("IP: ").append(device.ip).append('\n');
+        synchronized (device) {
+            if (device.upnpServer != null) report.append("Server: ").append(device.upnpServer).append('\n');
+            for (String t : device.upnpTypes) report.append("Type: ").append(t).append('\n');
+            if (device.upnpLocation != null) report.append("Location: ").append(device.upnpLocation).append('\n');
+        }
+        if (device.upnpLocation != null) {
+            try {
+                report.append(describeUpnp(fetch(device.upnpLocation)));
+            } catch (IOException e) {
+                report.append("Description: couldn't load (").append(e.getMessage()).append(")\n");
+            }
+        }
+        report.append("Open ports: ").append(openPorts(device.ip, progress)).append('\n');
+        return report.toString();
+    }
+
+    static String describeUpnp(String xml) {
+        StringBuilder out = new StringBuilder();
+        for (String tag : new String[] {"friendlyName", "manufacturer", "manufacturerURL", "modelName",
+                "modelNumber", "modelDescription", "deviceType", "serviceType"}) {
+            Matcher m = Pattern.compile("<(?:\\w+:)?" + tag + ">([^<]*)</").matcher(xml);
+            Set<String> values = new LinkedHashSet<>();
+            while (m.find()) values.add(m.group(1).trim());
+            for (String v : values) out.append(tag).append(": ").append(v).append('\n');
+        }
+        return out.toString();
+    }
+
+    private static String fetch(String url) throws IOException {
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        c.setConnectTimeout(3000);
+        c.setReadTimeout(3000);
+        try (InputStream in = c.getInputStream()) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = in.read(buf)) > 0 && out.size() < 256 * 1024) out.write(buf, 0, n);
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
+        } finally {
+            c.disconnect();
+        }
+    }
+
+    static List<Integer> openPorts(String host, PortProgress progress) {
+        List<Integer> open = Collections.synchronizedList(new ArrayList<>());
+        ExecutorService pool = Executors.newFixedThreadPool(200);
+        AtomicInteger checked = new AtomicInteger();
+        for (int port = 1; port <= 65535; port++) {
+            final int p = port;
+            pool.execute(() -> {
+                if (isOpen(host, p)) open.add(p);
+                int n = checked.incrementAndGet();
+                if (progress != null && n % 655 == 0) progress.onProgress(n / 655);
+            });
+        }
+        pool.shutdown();
+        try {
+            pool.awaitTermination(3, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        pool.shutdownNow();
+        List<Integer> sorted = new ArrayList<>(open);
+        Collections.sort(sorted);
+        return sorted;
     }
 
     static String platformHint(String server) {
