@@ -1,0 +1,47 @@
+plugins {
+    id "com.android.application"
+}
+
+def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
+android {
+    namespace "io.github.icmrnbw.tvremote"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "io.github.icmrnbw.tvremote"
+        minSdk 26
+        targetSdk 35
+        versionCode buildNumber
+        versionName "1.0.${buildNumber}"
+    }
+
+    // A fixed key so each new APK installs as an update over the previous one.
+    signingConfigs {
+        shared {
+            storeFile file("remote.keystore")
+            storePassword "rossoremote"
+            keyAlias "remote"
+            keyPassword "rossoremote"
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.shared
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.shared
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    lint {
+        abortOnError false
+    }
+}
