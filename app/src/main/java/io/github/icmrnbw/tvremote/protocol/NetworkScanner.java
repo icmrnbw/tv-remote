@@ -65,7 +65,7 @@ public final class NetworkScanner {
     }
 
     static final String ANDROID_TV = "Android TV / Google TV";
-    static final String VESTEL_TV = "Smart TV (Vestel Smart Center)";
+    static final String VESTEL_TV = "Smart TV (DIAL / Smart Center, port 56789)";
 
     private static final int[] PORTS = {6466, VestelClient.PORT, 8060, 3000, 3001, 8001, 8002, 36669, 1925, 8009};
     private static final String[] PORT_KINDS = {
@@ -216,8 +216,72 @@ public final class NetworkScanner {
                 report.append("Description: couldn't load (").append(e.getMessage()).append(")\n");
             }
         }
-        report.append("Open ports: ").append(openPorts(device.ip, progress)).append('\n');
+        List<Integer> ports = openPorts(device.ip, progress);
+        report.append("Open ports: ").append(ports).append('\n');
+        for (int i = 0; i < ports.size() && i < 16; i++) {
+            report.append("Port ").append(ports.get(i)).append(": ").append(probe(device.ip, ports.get(i))).append('\n');
+        }
+        if (ports.contains(VestelClient.PORT)) {
+            for (String app : new String[] {"YouTube", "Netflix", "SmartCenter"}) {
+                report.append("GET /apps/").append(app).append(": ")
+                        .append(httpGet("http://" + device.ip + ":" + VestelClient.PORT + "/apps/" + app)).append('\n');
+            }
+        }
         return report.toString();
+    }
+
+    /** What a port says on its own, or else what it answers to an HTTP request. */
+    static String probe(String host, int port) {
+        try (Socket s = new Socket()) {
+            s.connect(new InetSocketAddress(host, port), 1500);
+            s.setSoTimeout(1500);
+            InputStream in = s.getInputStream();
+            String greeting = readSome(in);
+            if (!greeting.isEmpty()) return "says \"" + greeting + "\"";
+            s.getOutputStream().write(("GET / HTTP/1.0\r\nHost: " + host + "\r\n\r\n")
+                    .getBytes(StandardCharsets.US_ASCII));
+            String answer = readSome(in);
+            return answer.isEmpty() ? "silent" : "HTTP \"" + answer + "\"";
+        } catch (IOException e) {
+            return "error " + e.getClass().getSimpleName();
+        }
+    }
+
+    private static String readSome(InputStream in) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buf = new byte[512];
+        try {
+            int n;
+            while (out.size() < 400 && (n = in.read(buf)) > 0) out.write(buf, 0, n);
+        } catch (IOException ignored) {
+            // timeout or reset: keep what arrived
+        }
+        StringBuilder text = new StringBuilder();
+        for (byte b : out.toByteArray()) {
+            int c = b & 0xFF;
+            if (c == '\n') text.append(" | ");
+            else if (c >= 32 && c < 127) text.append((char) c);
+            else if (c != '\r') text.append(String.format(Locale.US, "\\x%02x", c));
+        }
+        String t = text.toString().trim();
+        return t.length() > 300 ? t.substring(0, 300) + "…" : t;
+    }
+
+    private static String httpGet(String url) {
+        try {
+            HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+            c.setConnectTimeout(3000);
+            c.setReadTimeout(3000);
+            try {
+                int status = c.getResponseCode();
+                InputStream in = status >= 400 ? c.getErrorStream() : c.getInputStream();
+                return status + (in == null ? "" : " " + readSome(in));
+            } finally {
+                c.disconnect();
+            }
+        } catch (IOException e) {
+            return "error " + e.getClass().getSimpleName();
+        }
     }
 
     static String describeUpnp(String xml) {
