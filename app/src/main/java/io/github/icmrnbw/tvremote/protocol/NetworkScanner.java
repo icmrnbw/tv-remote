@@ -50,6 +50,10 @@ public final class NetworkScanner {
             return kinds.contains(ANDROID_TV);
         }
 
+        public synchronized boolean isVestel() {
+            return kinds.contains(VESTEL_TV);
+        }
+
         public synchronized String describe() {
             String what = kinds.isEmpty() ? "Unknown device" : String.join(" / ", kinds);
             return upnpServer == null ? what : what + " (" + upnpServer + ")";
@@ -61,10 +65,11 @@ public final class NetworkScanner {
     }
 
     static final String ANDROID_TV = "Android TV / Google TV";
+    static final String VESTEL_TV = "Smart TV (Vestel Smart Center)";
 
-    private static final int[] PORTS = {6466, 8060, 3000, 3001, 8001, 8002, 36669, 1925, 8009};
+    private static final int[] PORTS = {6466, VestelClient.PORT, 8060, 3000, 3001, 8001, 8002, 36669, 1925, 8009};
     private static final String[] PORT_KINDS = {
-            ANDROID_TV, "Roku TV", "LG webOS TV", "LG webOS TV", "Samsung TV", "Samsung TV",
+            ANDROID_TV, VESTEL_TV, "Roku TV", "LG webOS TV", "LG webOS TV", "Samsung TV", "Samsung TV",
             "Hisense VIDAA TV", "Philips TV", "Chromecast built-in"};
 
     private NetworkScanner() {}

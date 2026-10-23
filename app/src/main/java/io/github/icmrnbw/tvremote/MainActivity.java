@@ -45,6 +45,7 @@ import io.github.icmrnbw.tvremote.protocol.ClientIdentity;
 import io.github.icmrnbw.tvremote.protocol.NetworkScanner;
 import io.github.icmrnbw.tvremote.protocol.PairingSession;
 import io.github.icmrnbw.tvremote.protocol.RemoteClient;
+import io.github.icmrnbw.tvremote.protocol.VestelClient;
 
 public class MainActivity extends Activity implements RemoteClient.Listener {
     private static final String SERVICE_TYPE = "_androidtvremote2._tcp.";
@@ -59,6 +60,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     private SharedPreferences prefs;
     private ClientIdentity identity;
     private volatile RemoteClient remote;
+    private volatile VestelClient vestel;
     private TextView status;
     private LinearLayout numberPad;
 
@@ -90,9 +92,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     protected void onStop() {
         super.onStop();
         stopDiscovery();
-        RemoteClient r = remote;
-        remote = null;
-        if (r != null) net.execute(r::close);
+        net.execute(this::closeClients);
     }
 
     @Override
@@ -124,20 +124,44 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     private void connect(String host) {
         setStatus("Connecting to " + host + "…");
         net.execute(() -> {
+            closeClients();
+            boolean knownVestel = host.equals(prefs.getString("host", null))
+                    && "vestel".equals(prefs.getString("kind", null));
+            if (knownVestel && connectVestel(host)) return;
             if (identity == null) return;
-            RemoteClient old = remote;
-            if (old != null) old.close();
             RemoteClient client = new RemoteClient(host, identity, deviceName(), this);
             try {
                 client.connect();
                 remote = client;
-                prefs.edit().putString("host", host).apply();
+                prefs.edit().putString("host", host).putString("kind", "atv").apply();
             } catch (RemoteClient.NotPairedException e) {
                 startPairing(host);
             } catch (IOException e) {
+                // Not an Android TV; maybe a Vestel-made Smart TV.
+                if (connectVestel(host)) return;
                 setStatus("Can't reach the TV at " + host + ". Check that it's on and on the same Wi‑Fi. Tap “TV” to pick another.");
             }
         });
+    }
+
+    /** Vestel TVs have no session: if the Smart Center port answers, we're good to go. */
+    private boolean connectVestel(String host) {
+        if (!VestelClient.isReachable(host)) return false;
+        vestel = new VestelClient(host, reason -> setStatus("The TV didn't take that button (" + reason
+                + "). Check that Virtual Remote is turned on in the TV's settings."));
+        prefs.edit().putString("host", host).putString("kind", "vestel").apply();
+        setStatus("Connected to the Smart TV at " + host
+                + ". If buttons do nothing, turn on “Virtual Remote” in the TV's settings.");
+        return true;
+    }
+
+    private void closeClients() {
+        RemoteClient r = remote;
+        remote = null;
+        if (r != null) r.close();
+        VestelClient v = vestel;
+        vestel = null;
+        if (v != null) v.close();
     }
 
     private void startPairing(String host) {
@@ -207,6 +231,16 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     }
 
     private void send(int keyCode) {
+        VestelClient v = vestel;
+        if (v != null) {
+            int code = vestelCode(keyCode);
+            if (code > 0) {
+                v.sendKey(code);
+            } else {
+                setStatus("That button isn't available on this TV.");
+            }
+            return;
+        }
         RemoteClient r = remote;
         if (r == null) {
             setStatus("Not connected. Tap “TV” to connect.");
@@ -216,8 +250,50 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     }
 
     private void launch(String link) {
+        VestelClient v = vestel;
+        if (v != null) {
+            if (link.contains("youtube")) {
+                v.launchApp("YouTube");
+            } else if (link.contains("netflix")) {
+                v.launchApp("Netflix");
+            } else {
+                setStatus("This TV can only open YouTube and Netflix from the app.");
+            }
+            return;
+        }
         RemoteClient r = remote;
         if (r != null) r.launchApp(link);
+    }
+
+    /** Android key codes to the codes Vestel's virtual remote uses; -1 if there's none. */
+    private static int vestelCode(int keyCode) {
+        if (keyCode >= KeyEvent.KEYCODE_0 && keyCode <= KeyEvent.KEYCODE_9) {
+            return VestelClient.DIGIT_0 + (keyCode - KeyEvent.KEYCODE_0);
+        }
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_POWER: return VestelClient.POWER;
+            case KeyEvent.KEYCODE_TV_INPUT: return VestelClient.SOURCE;
+            case KeyEvent.KEYCODE_VOLUME_MUTE: return VestelClient.MUTE;
+            case KeyEvent.KEYCODE_SETTINGS: return VestelClient.MENU;
+            case KeyEvent.KEYCODE_DPAD_UP: return VestelClient.UP;
+            case KeyEvent.KEYCODE_DPAD_DOWN: return VestelClient.DOWN;
+            case KeyEvent.KEYCODE_DPAD_LEFT: return VestelClient.LEFT;
+            case KeyEvent.KEYCODE_DPAD_RIGHT: return VestelClient.RIGHT;
+            case KeyEvent.KEYCODE_DPAD_CENTER: return VestelClient.OK;
+            case KeyEvent.KEYCODE_BACK: return VestelClient.BACK;
+            case KeyEvent.KEYCODE_HOME: return VestelClient.HOME;
+            case KeyEvent.KEYCODE_MENU: return VestelClient.QUICK_MENU;
+            case KeyEvent.KEYCODE_VOLUME_UP: return VestelClient.VOLUME_UP;
+            case KeyEvent.KEYCODE_VOLUME_DOWN: return VestelClient.VOLUME_DOWN;
+            case KeyEvent.KEYCODE_CHANNEL_UP: return VestelClient.CHANNEL_UP;
+            case KeyEvent.KEYCODE_CHANNEL_DOWN: return VestelClient.CHANNEL_DOWN;
+            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE: return VestelClient.PLAY;
+            case KeyEvent.KEYCODE_MEDIA_REWIND: return VestelClient.REWIND;
+            case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD: return VestelClient.FORWARD;
+            case KeyEvent.KEYCODE_GUIDE: return VestelClient.EPG;
+            case KeyEvent.KEYCODE_INFO: return VestelClient.INFO;
+            default: return -1;
+        }
     }
 
     private static String deviceName() {
@@ -262,7 +338,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
         }
 
         boolean controllable() {
-            return service != null || device.isAndroidTv();
+            return service != null || device.isAndroidTv() || device.isVestel();
         }
 
         @Override
@@ -298,7 +374,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
             dialog.dismiss();
             if (c.service != null) {
                 resolveAndConnect(c.service);
-            } else if (c.device.isAndroidTv()) {
+            } else if (c.device.isAndroidTv() || c.device.isVestel()) {
                 connect(c.device.ip);
             } else {
                 explainUnsupported(c.device);
@@ -335,11 +411,11 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
             String done;
             try {
                 List<NetworkScanner.Device> devices = NetworkScanner.scan(progress);
-                boolean android = false;
-                for (NetworkScanner.Device d : devices) android |= d.isAndroidTv();
-                done = android ? "Tap your TV:"
+                boolean supported = false;
+                for (NetworkScanner.Device d : devices) supported |= d.isAndroidTv() || d.isVestel();
+                done = supported ? "Tap your TV:"
                         : devices.isEmpty() ? "Nothing answered on this Wi‑Fi. Is the TV on and on the same network?"
-                        : "No Android TV found. Tap a device to see what it is.";
+                        : "No supported TV found. Tap a device to see what it is.";
             } catch (IOException e) {
                 done = e.getMessage();
             }

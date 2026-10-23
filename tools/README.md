@@ -12,3 +12,9 @@ Android SDK or real TV needed.
     java -cp /tmp/tv-classes ProtocolTest run /tmp/tv
 
 The fake TV listens on ports 6466 and 6467 of 127.0.0.1.
+
+## Vestel Smart Center TVs
+
+    python tools/fake_vestel_tv.py &
+    javac -d /tmp/tv-classes $(find app/src/main/java -path '*protocol*' -name '*.java') tools/VestelTest.java
+    java -cp /tmp/tv-classes VestelTest
