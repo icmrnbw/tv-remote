@@ -10,7 +10,8 @@ your browser or file manager when Android asks.
 ## Using it
 
 1. Make sure the phone and the TV are on the same Wi‑Fi network.
-2. Open Rosso Remote. It searches for TVs; tap yours. If it isn't listed, tap
+2. Open Rosso Remote. It searches the Wi‑Fi for TVs (by name and by scanning
+   the network) and says what kind of TV each one is; tap yours. If it isn't listed, tap
    **Enter IP address** and type the address shown on the TV under
    Settings → Network & Internet.
 3. The TV shows a 6 character code. Type it into the app and tap **Pair**.

@@ -34,11 +34,13 @@ import android.widget.TextView;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import io.github.icmrnbw.tvremote.protocol.ClientIdentity;
+import io.github.icmrnbw.tvremote.protocol.NetworkScanner;
 import io.github.icmrnbw.tvremote.protocol.PairingSession;
 import io.github.icmrnbw.tvremote.protocol.RemoteClient;
 
@@ -248,19 +250,38 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
 
     // --- Finding TVs on the network ---
 
+    /** One row in the TV list: found by mDNS (service) or by the network scan (device). */
+    private static final class Candidate {
+        NsdServiceInfo service;
+        NetworkScanner.Device device;
+
+        String key() {
+            return service != null ? "nsd:" + service.getServiceName() : device.ip;
+        }
+
+        boolean controllable() {
+            return service != null || device.isAndroidTv();
+        }
+
+        @Override
+        public String toString() {
+            if (service != null) return service.getServiceName() + "\nAndroid TV / Google TV";
+            return device.ip + "\n" + device.describe();
+        }
+    }
+
     private void showTvPicker() {
-        List<String> names = new ArrayList<>();
-        List<NsdServiceInfo> services = new ArrayList<>();
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, names);
+        List<Candidate> rows = new ArrayList<>();
+        ArrayAdapter<Candidate> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, rows);
         ListView list = new ListView(this);
         list.setAdapter(adapter);
         TextView empty = new TextView(this);
-        empty.setText("Searching your Wi‑Fi for TVs…");
+        empty.setText("Searching your Wi‑Fi for TVs… (takes about 15 seconds)");
         empty.setPadding(dp(24), dp(16), dp(24), dp(16));
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.addView(empty);
-        box.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(240)));
+        box.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Choose your TV")
@@ -271,25 +292,79 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
                 .show();
 
         list.setOnItemClickListener((parent, view, position, id) -> {
+            Candidate c = rows.get(position);
             dialog.dismiss();
-            resolveAndConnect(services.get(position));
+            if (c.service != null) {
+                resolveAndConnect(c.service);
+            } else if (c.device.isAndroidTv()) {
+                connect(c.device.ip);
+            } else {
+                explainUnsupported(c.device);
+            }
         });
 
-        startDiscovery(service -> {
-            for (NsdServiceInfo s : services) {
-                if (s.getServiceName().equals(service.getServiceName())) return;
-            }
-            services.add(service);
-            names.add(service.getServiceName());
+        // Android TVs first, then other TVs, then anything else that answered.
+        Runnable sort = () -> {
+            Collections.sort(rows, (a, b) -> rank(a) - rank(b));
             adapter.notifyDataSetChanged();
-            empty.setText("Found these TVs. Tap yours:");
+        };
+        startDiscovery(service -> {
+            Candidate c = new Candidate();
+            c.service = service;
+            for (Candidate r : rows) if (r.key().equals(c.key())) return;
+            rows.add(c);
+            sort.run();
+            empty.setText("Tap your TV:");
         });
-        ui.postDelayed(() -> {
-            if (dialog.isShowing() && services.isEmpty()) {
-                empty.setText("No TVs found yet. Make sure the TV is on and on the same Wi‑Fi, "
-                        + "or enter its IP address (TV Settings → Network → About).");
+
+        new Thread(() -> {
+            NetworkScanner.Progress progress = device -> ui.post(() -> {
+                for (Candidate r : rows) {
+                    if (r.device == device) {
+                        sort.run();
+                        return;
+                    }
+                }
+                Candidate c = new Candidate();
+                c.device = device;
+                rows.add(c);
+                sort.run();
+            });
+            String done;
+            try {
+                List<NetworkScanner.Device> devices = NetworkScanner.scan(progress);
+                boolean android = false;
+                for (NetworkScanner.Device d : devices) android |= d.isAndroidTv();
+                done = android ? "Tap your TV:"
+                        : devices.isEmpty() ? "Nothing answered on this Wi‑Fi. Is the TV on and on the same network?"
+                        : "No Android TV found. Tap a device to see what it is.";
+            } catch (IOException e) {
+                done = e.getMessage();
             }
-        }, 8000);
+            String message = done;
+            ui.post(() -> {
+                boolean nsdFound = false;
+                for (Candidate r : rows) nsdFound |= r.service != null;
+                empty.setText(nsdFound ? "Tap your TV:" : message);
+            });
+        }, "tv-scan").start();
+    }
+
+    private static int rank(Candidate c) {
+        if (c.controllable()) return 0;
+        for (String kind : c.device.kinds) if (kind.endsWith("TV")) return 1;
+        return c.device.kinds.isEmpty() ? 3 : 2;
+    }
+
+    private void explainUnsupported(NetworkScanner.Device device) {
+        new AlertDialog.Builder(this)
+                .setTitle("Not an Android TV")
+                .setMessage("This device at " + device.ip + " looks like:\n\n" + device.describe()
+                        + "\n\nThis app controls Android TV / Google TV only. If this is your TV, "
+                        + "send this text to Claude so the app can be adapted to it.")
+                .setPositiveButton("Try anyway", (d, w) -> connect(device.ip))
+                .setNegativeButton("Back", (d, w) -> showTvPicker())
+                .show();
     }
 
     private interface Found {
