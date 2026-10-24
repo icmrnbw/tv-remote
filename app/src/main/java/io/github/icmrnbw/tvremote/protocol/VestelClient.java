@@ -78,6 +78,43 @@ public final class VestelClient {
         post("/apps/" + dialName, "");
     }
 
+    /** Closes YouTube / Netflix if one of them was started over DIAL, back to TV. */
+    public void stopApps() {
+        for (String app : new String[] {"YouTube", "Netflix"}) {
+            try {
+                sender.execute(() -> {
+                    try {
+                        request("DELETE", "/apps/" + app + "/run", null);
+                    } catch (IOException ignored) {
+                        // Not running.
+                    }
+                });
+            } catch (RuntimeException ignored) {
+                // Already closed.
+            }
+        }
+    }
+
+    /**
+     * Port 56789 is also a plain DIAL server on many non-Vestel TVs; only Vestel's
+     * answers on the Smart Center path.
+     */
+    public static boolean hasSmartCenter(String host) {
+        try {
+            HttpURLConnection c = (HttpURLConnection) new URL("http://" + host + ":" + PORT + "/apps/SmartCenter")
+                    .openConnection();
+            c.setConnectTimeout(2000);
+            c.setReadTimeout(2000);
+            try {
+                return c.getResponseCode() != 404;
+            } finally {
+                c.disconnect();
+            }
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     public void close() {
         sender.shutdownNow();
     }
@@ -98,17 +135,23 @@ public final class VestelClient {
     }
 
     int postNow(String path, String body) throws IOException {
-        byte[] bytes = body.getBytes(StandardCharsets.ISO_8859_1);
+        return request("POST", path, body);
+    }
+
+    private int request(String method, String path, String body) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL("http://" + host + ":" + PORT + path).openConnection();
         try {
             c.setConnectTimeout(3000);
             c.setReadTimeout(3000);
-            c.setRequestMethod("POST");
-            c.setDoOutput(true);
-            c.setRequestProperty("Content-Type", "text/plain; charset=ISO-8859-1");
-            c.setFixedLengthStreamingMode(bytes.length);
-            try (OutputStream out = c.getOutputStream()) {
-                out.write(bytes);
+            c.setRequestMethod(method);
+            if (body != null) {
+                byte[] bytes = body.getBytes(StandardCharsets.ISO_8859_1);
+                c.setDoOutput(true);
+                c.setRequestProperty("Content-Type", "text/plain; charset=ISO-8859-1");
+                c.setFixedLengthStreamingMode(bytes.length);
+                try (OutputStream out = c.getOutputStream()) {
+                    out.write(bytes);
+                }
             }
             int status = c.getResponseCode();
             InputStream in = status >= 400 ? c.getErrorStream() : c.getInputStream();

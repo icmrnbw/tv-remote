@@ -42,6 +42,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import io.github.icmrnbw.tvremote.protocol.ClientIdentity;
+import io.github.icmrnbw.tvremote.protocol.DlnaClient;
 import io.github.icmrnbw.tvremote.protocol.NetworkScanner;
 import io.github.icmrnbw.tvremote.protocol.PairingSession;
 import io.github.icmrnbw.tvremote.protocol.RemoteClient;
@@ -61,6 +62,9 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     private ClientIdentity identity;
     private volatile RemoteClient remote;
     private volatile VestelClient vestel;
+    // TVs whose port 56789 is only DIAL: apps via DIAL, volume via DLNA, nothing else.
+    private volatile boolean dialOnly;
+    private volatile DlnaClient dlna;
     private TextView status;
     private LinearLayout numberPad;
 
@@ -147,11 +151,27 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     /** Vestel TVs have no session: if the Smart Center port answers, we're good to go. */
     private boolean connectVestel(String host) {
         if (!VestelClient.isReachable(host)) return false;
-        vestel = new VestelClient(host, reason -> setStatus("The TV didn't take that button (" + reason
-                + "). Check that Virtual Remote is turned on in the TV's settings."));
         prefs.edit().putString("host", host).putString("kind", "vestel").apply();
-        setStatus("Connected to the Smart TV at " + host
-                + ". If buttons do nothing, turn on “Virtual Remote” in the TV's settings.");
+        if (VestelClient.hasSmartCenter(host)) {
+            dialOnly = false;
+            vestel = new VestelClient(host, reason -> setStatus("The TV didn't take that button (" + reason
+                    + "). Check that Virtual Remote is turned on in the TV's settings."));
+            setStatus("Connected to the Smart TV at " + host
+                    + ". If buttons do nothing, turn on “Virtual Remote” in the TV's settings.");
+            return true;
+        }
+        dialOnly = true;
+        vestel = new VestelClient(host, reason -> setStatus("The TV didn't respond (" + reason + ")."));
+        dlna = DlnaClient.find(host, null, new DlnaClient.Listener() {
+            @Override public void onVolume(int volume, boolean muted) {
+                setStatus(muted ? "Muted" : "Volume " + volume);
+            }
+            @Override public void onSendFailed(String reason) {
+                setStatus("The TV didn't change the volume (" + reason + ").");
+            }
+        });
+        setStatus("Connected to the Smart TV at " + host + ". This TV lets the app change "
+                + (dlna != null ? "the volume, " : "") + "open YouTube and Netflix, and close them with Home or Back.");
         return true;
     }
 
@@ -162,6 +182,9 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
         VestelClient v = vestel;
         vestel = null;
         if (v != null) v.close();
+        DlnaClient d = dlna;
+        dlna = null;
+        if (d != null) d.close();
     }
 
     private void startPairing(String host) {
@@ -232,6 +255,10 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
 
     private void send(int keyCode) {
         VestelClient v = vestel;
+        if (v != null && dialOnly) {
+            sendLimited(v, keyCode);
+            return;
+        }
         if (v != null) {
             int code = vestelCode(keyCode);
             if (code > 0) {
@@ -263,6 +290,29 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
         }
         RemoteClient r = remote;
         if (r != null) r.launchApp(link);
+    }
+
+    private void sendLimited(VestelClient v, int keyCode) {
+        DlnaClient d = dlna;
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_HOME:
+            case KeyEvent.KEYCODE_BACK:
+                v.stopApps();
+                return;
+            case KeyEvent.KEYCODE_VOLUME_UP:
+                if (d != null) d.volumeUp();
+                break;
+            case KeyEvent.KEYCODE_VOLUME_DOWN:
+                if (d != null) d.volumeDown();
+                break;
+            case KeyEvent.KEYCODE_VOLUME_MUTE:
+                if (d != null) d.toggleMute();
+                break;
+            default:
+                setStatus("This TV doesn't let apps press that button yet. Volume, YouTube, Netflix, Home and Back work.");
+                return;
+        }
+        if (d == null) setStatus("This TV doesn't let apps change the volume.");
     }
 
     /** Android key codes to the codes Vestel's virtual remote uses; -1 if there's none. */

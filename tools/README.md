@@ -18,3 +18,9 @@ The fake TV listens on ports 6466 and 6467 of 127.0.0.1.
     python tools/fake_vestel_tv.py &
     javac -d /tmp/tv-classes $(find app/src/main/java -path '*protocol*' -name '*.java') tools/VestelTest.java
     java -cp /tmp/tv-classes VestelTest
+
+## DIAL + DLNA TVs (like the Rosso this app was made for)
+
+    python tools/fake_dial_tv.py &
+    javac -d /tmp/tv-classes $(find app/src/main/java -path '*protocol*' -name '*.java') tools/DialTest.java
+    java -cp /tmp/tv-classes DialTest

@@ -8,6 +8,10 @@ Wi‑Fi. It works with two kinds of TV:
   on **Virtual Remote** in the TV's settings for these.
 - **Android TV / Google TV**, using the same protocol as Google's TV remote.
 
+Other Linux smart TVs that only offer YouTube/Netflix casting (DIAL) and a
+media renderer (DLNA) get a limited remote: volume and mute, opening YouTube
+and Netflix, and closing them with Home or Back.
+
 **Download:** [rosso-remote.apk](https://github.com/icmrnbw/tv-remote/releases/latest/download/rosso-remote.apk)
 (Android 8.0 or newer). Open the file on your phone and allow installing from
 your browser or file manager when Android asks.
