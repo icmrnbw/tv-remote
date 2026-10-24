@@ -29,6 +29,9 @@ public final class DlnaClient {
     private final String controlUrl;
     private final Listener listener;
     private final ExecutorService sender = Executors.newSingleThreadExecutor();
+    private int lastSet = -1;
+    private long lastSetAt;
+    private String lastReply = "";
 
     private DlnaClient(String controlUrl, Listener listener) {
         this.controlUrl = controlUrl;
@@ -85,7 +88,8 @@ public final class DlnaClient {
             String current = value(soap("GetMute", ""), "CurrentMute");
             boolean muted = "1".equals(current) || "true".equalsIgnoreCase(current);
             soap("SetMute", "<DesiredMute>" + (muted ? 0 : 1) + "</DesiredMute>");
-            listener.onVolume(currentVolume(), !muted);
+            Integer volume = readVolume();
+            listener.onVolume(volume != null ? volume : Math.max(lastSet, 0), !muted);
         });
     }
 
@@ -95,18 +99,35 @@ public final class DlnaClient {
 
     private void changeVolume(int step) {
         run(() -> {
-            int volume = Math.max(0, Math.min(100, currentVolume() + step));
+            Integer reported = readVolume();
+            // Some renderers report a stale level for a while after a change; trust our own
+            // last setting for quick repeated presses.
+            boolean recent = lastSet >= 0 && System.currentTimeMillis() - lastSetAt < 10_000;
+            int base;
+            if (recent) {
+                base = lastSet;
+            } else if (reported != null) {
+                base = reported;
+            } else {
+                throw new IOException("couldn't read the volume, the TV said: " + lastReply);
+            }
+            int volume = Math.max(0, Math.min(100, base + step));
             soap("SetVolume", "<DesiredVolume>" + volume + "</DesiredVolume>");
+            lastSet = volume;
+            lastSetAt = System.currentTimeMillis();
             listener.onVolume(volume, false);
         });
     }
 
-    private int currentVolume() throws IOException {
-        String v = value(soap("GetVolume", ""), "CurrentVolume");
+    /** The level the TV reports, or null if its answer has no readable number. */
+    private Integer readVolume() throws IOException {
+        String reply = soap("GetVolume", "");
+        lastReply = reply.length() > 300 ? reply.substring(0, 300) : reply;
+        String v = value(reply, "CurrentVolume");
         try {
-            return v == null ? 0 : Integer.parseInt(v.trim());
+            return v == null ? null : Integer.valueOf(v.trim());
         } catch (NumberFormatException e) {
-            return 0;
+            return null;
         }
     }
 
@@ -139,7 +160,8 @@ public final class DlnaClient {
     }
 
     private static String value(String xml, String tag) {
-        Matcher m = Pattern.compile("<(?:\\w+:)?" + tag + ">([^<]*)</").matcher(xml);
+        // The tag may carry a namespace prefix and attributes, e.g. <CurrentVolume dt:dt="ui2">.
+        Matcher m = Pattern.compile("<(?:[\\w.-]+:)?" + tag + "(?:\\s[^>]*)?>([^<]*)<").matcher(xml);
         return m.find() ? m.group(1) : null;
     }
 

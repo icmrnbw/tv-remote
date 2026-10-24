@@ -65,7 +65,7 @@ class Dlna(BaseHTTPRequestHandler):
         if action == "SetMute":
             state["mute"] = int(re.search(r"<DesiredMute>(\d)<", body).group(1))
         print("DLNA:", action, state, flush=True)
-        reply = (f"<u:{action}Response><CurrentVolume>{state['volume']}</CurrentVolume>"
+        reply = (f"<u:{action}Response><CurrentVolume xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"ui2\">{state['volume']}</CurrentVolume>"
                  f"<CurrentMute>{state['mute']}</CurrentMute></u:{action}Response>")
         self.send_response(200)
         self.end_headers()
