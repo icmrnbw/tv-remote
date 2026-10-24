@@ -14,6 +14,7 @@ public class DialTest {
         });
         System.out.println("phone: dlna found=" + (dlna != null));
         dial.launchApp("YouTube");
+        dlna.setKnownVolume(20); // remembered from an earlier session
         dlna.volumeUp();
         dlna.volumeUp();
         dlna.volumeDown();

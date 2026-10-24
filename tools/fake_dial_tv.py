@@ -65,7 +65,9 @@ class Dlna(BaseHTTPRequestHandler):
         if action == "SetMute":
             state["mute"] = int(re.search(r"<DesiredMute>(\d)<", body).group(1))
         print("DLNA:", action, state, flush=True)
-        reply = (f"<u:{action}Response><CurrentVolume xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"ui2\">{state['volume']}</CurrentVolume>"
+        # Like the user's TV: GetVolume answers 0 even though the volume is set.
+        reported = 0 if action == "GetVolume" else state["volume"]
+        reply = (f"<u:{action}Response><CurrentVolume xmlns:dt=\"urn:schemas-microsoft-com:datatypes\" dt:dt=\"ui2\">{reported}</CurrentVolume>"
                  f"<CurrentMute>{state['mute']}</CurrentMute></u:{action}Response>")
         self.send_response(200)
         self.end_headers()

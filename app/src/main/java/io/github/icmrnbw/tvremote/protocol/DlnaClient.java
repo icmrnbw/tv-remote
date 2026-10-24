@@ -22,6 +22,7 @@ public final class DlnaClient {
     private static final int[] DESCRIPTION_PORTS = {2870, 2875, 49152, 1400};
 
     public interface Listener {
+        /** volume is -1 when unknown. */
         void onVolume(int volume, boolean muted);
         void onSendFailed(String reason);
     }
@@ -88,9 +89,13 @@ public final class DlnaClient {
             String current = value(soap("GetMute", ""), "CurrentMute");
             boolean muted = "1".equals(current) || "true".equalsIgnoreCase(current);
             soap("SetMute", "<DesiredMute>" + (muted ? 0 : 1) + "</DesiredMute>");
-            Integer volume = readVolume();
-            listener.onVolume(volume != null ? volume : Math.max(lastSet, 0), !muted);
+            listener.onVolume(lastSet, !muted);
         });
+    }
+
+    /** The level we last set, e.g. saved from an earlier session; -1 if unknown. */
+    public void setKnownVolume(int volume) {
+        run(() -> lastSet = volume);
     }
 
     public void close() {
@@ -100,11 +105,12 @@ public final class DlnaClient {
     private void changeVolume(int step) {
         run(() -> {
             Integer reported = readVolume();
-            // Some renderers report a stale level for a while after a change; trust our own
-            // last setting for quick repeated presses.
+            // Some renderers report a stale level after a change, or 0 whenever they're idle
+            // (the user's Rosso does). Trust our own last setting for quick repeated presses,
+            // and whenever the TV claims 0.
             boolean recent = lastSet >= 0 && System.currentTimeMillis() - lastSetAt < 10_000;
             int base;
-            if (recent) {
+            if (recent || (lastSet >= 0 && (reported == null || reported == 0))) {
                 base = lastSet;
             } else if (reported != null) {
                 base = reported;

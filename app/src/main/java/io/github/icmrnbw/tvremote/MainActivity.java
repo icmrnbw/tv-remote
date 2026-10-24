@@ -164,12 +164,15 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
         vestel = new VestelClient(host, reason -> setStatus("The TV didn't respond (" + reason + ")."));
         dlna = DlnaClient.find(host, null, new DlnaClient.Listener() {
             @Override public void onVolume(int volume, boolean muted) {
-                setStatus(muted ? "Muted" : "Volume " + volume);
+                // This TV doesn't report its volume reliably, so remember what we set.
+                if (!muted && volume > 0) prefs.edit().putInt("volume", volume).apply();
+                setStatus(muted ? "Muted" : volume >= 0 ? "Volume " + volume : "Sound on");
             }
             @Override public void onSendFailed(String reason) {
                 setStatus("The TV didn't change the volume (" + reason + ").");
             }
         });
+        if (dlna != null) dlna.setKnownVolume(prefs.getInt("volume", -1));
         setStatus("Connected to the Smart TV at " + host + ". This TV lets the app change "
                 + (dlna != null ? "the volume, " : "") + "open YouTube and Netflix, and close them with Home or Back.");
         return true;
