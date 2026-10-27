@@ -14,6 +14,7 @@ import android.net.nsd.NsdServiceInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputFilter;
@@ -48,7 +49,7 @@ import io.github.icmrnbw.tvremote.protocol.PairingSession;
 import io.github.icmrnbw.tvremote.protocol.RemoteClient;
 import io.github.icmrnbw.tvremote.protocol.VestelClient;
 
-public class MainActivity extends Activity implements RemoteClient.Listener {
+public class MainActivity extends Activity implements RemoteClient.Listener, BluetoothRemote.Listener {
     private static final String SERVICE_TYPE = "_androidtvremote2._tcp.";
     private static final int BACKGROUND = Color.rgb(0x12, 0x12, 0x14);
     private static final int BUTTON = Color.rgb(0x2A, 0x2A, 0x2E);
@@ -68,6 +69,12 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     private TextView status;
     private LinearLayout numberPad;
 
+    private static final int REQUEST_BLUETOOTH = 1;
+    private static final int REQUEST_DISCOVERABLE = 2;
+    private BluetoothRemote bluetooth;
+    private String pendingBluetoothAddress;
+    private boolean pendingPairNew;
+
     private NsdManager nsd;
     private NsdManager.DiscoveryListener discovery;
     private WifiManager.MulticastLock multicastLock;
@@ -85,11 +92,14 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     protected void onStart() {
         super.onStart();
         String host = prefs.getString("host", null);
-        if (host == null) {
+        boolean useBluetooth = prefs.getBoolean("useBluetooth", false);
+        if (host == null && !useBluetooth) {
             showTvPicker();
-        } else {
-            connect(host);
+            return;
         }
+        // On Bluetooth TVs the Wi‑Fi link still opens YouTube / Netflix.
+        if (host != null) connect(host);
+        if (useBluetooth) startBluetooth(prefs.getString("btAddress", null), false);
     }
 
     @Override
@@ -97,6 +107,10 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
         super.onStop();
         stopDiscovery();
         net.execute(this::closeClients);
+        if (bluetooth != null) {
+            bluetooth.stop();
+            bluetooth = null;
+        }
     }
 
     @Override
@@ -257,6 +271,10 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
     }
 
     private void send(int keyCode) {
+        if (bluetooth != null && bluetooth.isConnected()) {
+            if (!bluetooth.sendKey(keyCode)) setStatus("That button has no Bluetooth equivalent.");
+            return;
+        }
         VestelClient v = vestel;
         if (v != null && dialOnly) {
             sendLimited(v, keyCode);
@@ -411,6 +429,11 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
         empty.setPadding(dp(24), dp(16), dp(24), dp(16));
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
+        Button useBluetooth = pill("Connect by Bluetooth instead", BUTTON);
+        useBluetooth.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        LinearLayout.LayoutParams btParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
+        btParams.setMargins(dp(24), dp(12), dp(24), 0);
+        box.addView(useBluetooth, btParams);
         box.addView(empty);
         box.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
 
@@ -421,6 +444,11 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
                 .setNegativeButton("Cancel", null)
                 .setOnDismissListener(d -> stopDiscovery())
                 .show();
+
+        useBluetooth.setOnClickListener(v -> {
+            dialog.dismiss();
+            startBluetooth(null, true);
+        });
 
         list.setOnItemClickListener((parent, view, position, id) -> {
             Candidate c = rows.get(position);
@@ -479,6 +507,101 @@ public class MainActivity extends Activity implements RemoteClient.Listener {
                 empty.setText(nsdFound ? "Tap your TV:" : message);
             });
         }, "tv-scan").start();
+    }
+
+    // --- Bluetooth remote ---
+
+    /** Starts the phone's Bluetooth remote; then connects to {@code address} or offers a TV list. */
+    private void startBluetooth(String address, boolean chooseTv) {
+        if (Build.VERSION.SDK_INT < 28) {
+            setStatus("Bluetooth remote needs Android 9 or newer.");
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= 31) {
+            String[] needed = {"android.permission.BLUETOOTH_CONNECT", "android.permission.BLUETOOTH_ADVERTISE"};
+            for (String permission : needed) {
+                if (checkSelfPermission(permission) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    pendingBluetoothAddress = address;
+                    pendingPairNew = chooseTv;
+                    requestPermissions(needed, REQUEST_BLUETOOTH);
+                    return;
+                }
+            }
+        }
+        if (bluetooth == null) bluetooth = new BluetoothRemote(this, this);
+        bluetooth.start(address);
+        if (chooseTv) ui.postDelayed(this::showBluetoothTvs, 600);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode != REQUEST_BLUETOOTH) return;
+        for (int r : results) {
+            if (r != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                setStatus("Bluetooth permission is needed to work as the TV's Bluetooth remote.");
+                return;
+            }
+        }
+        startBluetooth(pendingBluetoothAddress, pendingPairNew);
+    }
+
+    private void showBluetoothTvs() {
+        if (bluetooth == null || isFinishing()) return;
+        List<android.bluetooth.BluetoothDevice> devices = bluetooth.pairedDevices();
+        List<String> names = new ArrayList<>();
+        for (android.bluetooth.BluetoothDevice d : devices) names.add(BluetoothRemote.nameOf(d));
+        new AlertDialog.Builder(this)
+                .setTitle("Bluetooth remote")
+                .setItems(names.toArray(new String[0]), (d, which) -> {
+                    String address = devices.get(which).getAddress();
+                    prefs.edit().putBoolean("useBluetooth", true).putString("btAddress", address).apply();
+                    bluetooth.connect(address);
+                })
+                .setMessage(names.isEmpty() ? "No paired devices yet. Tap “Pair a new TV”." : null)
+                .setPositiveButton("Pair a new TV", (d, w) -> makeDiscoverable())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void makeDiscoverable() {
+        Intent visible = new Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
+                .putExtra(android.bluetooth.BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+        startActivityForResult(visible, REQUEST_DISCOVERABLE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_DISCOVERABLE) return;
+        if (resultCode == RESULT_CANCELED) {
+            setStatus("The phone needs to be visible for the TV to find it.");
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Pair from the TV")
+                .setMessage("For the next 5 minutes this phone is visible as “" + deviceName() + "”.\n\n"
+                        + "On the TV, open the Bluetooth settings (often under Network or System, "
+                        + "or “Remote & accessories”), search for devices, and pick this phone.\n\n"
+                        + "Keep this app open. When the TV connects, the buttons start working.")
+                .setPositiveButton("OK", null)
+                .show();
+    }
+
+    @Override
+    public void onBluetoothStatus(String text) {
+        setStatus(text);
+    }
+
+    @Override
+    public void onBluetoothConnected(String name, String address) {
+        prefs.edit().putBoolean("useBluetooth", true).putString("btAddress", address).apply();
+        setStatus("Connected by Bluetooth to " + name);
+    }
+
+    @Override
+    public void onBluetoothDisconnected() {
+        setStatus("Bluetooth disconnected. Tap “TV” to reconnect.");
     }
 
     private static int rank(Candidate c) {

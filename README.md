@@ -8,6 +8,11 @@ Wi‑Fi. It works with two kinds of TV:
   on **Virtual Remote** in the TV's settings for these.
 - **Android TV / Google TV**, using the same protocol as Google's TV remote.
 
+For TVs with Bluetooth, **Connect by Bluetooth instead** (in the TV list) makes
+the phone a Bluetooth keyboard and media remote: pair the TV with the phone
+from the TV's Bluetooth settings, and every button is sent as a standard
+Bluetooth remote key (Android 9+).
+
 Other Linux smart TVs that only offer YouTube/Netflix casting (DIAL) and a
 media renderer (DLNA) get a limited remote: volume and mute, opening YouTube
 and Netflix, and closing them with Home or Back.
