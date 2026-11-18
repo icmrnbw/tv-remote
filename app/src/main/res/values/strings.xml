@@ -1,3 +1,115 @@
 <resources>
     <string name="app_name">Rosso Remote</string>
+
+    <!-- Remote buttons -->
+    <string name="key_tv">TV</string>
+    <string name="key_power">Power</string>
+    <string name="key_input">Input</string>
+    <string name="key_mute">Mute</string>
+    <string name="key_back">↩ Back</string>
+    <string name="key_home">⌂ Home</string>
+    <string name="key_menu">☰ Menu</string>
+    <string name="key_vol">VOL</string>
+    <string name="key_ch">CH</string>
+    <string name="label_apps">Apps</string>
+    <string name="key_numbers">123  Number pad</string>
+    <string name="key_guide">Guide</string>
+    <string name="key_info">Info</string>
+
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="back">Back</string>
+    <string name="close">Close</string>
+    <string name="copy">Copy</string>
+    <string name="copied">Copied</string>
+    <string name="connect">Connect</string>
+
+    <!-- Status line -->
+    <string name="status_starting">Starting…</string>
+    <string name="status_key_failed">Couldn\'t create this phone\'s security key: %1$s</string>
+    <string name="status_connecting">Connecting to %1$s…</string>
+    <string name="status_unreachable">Can\'t reach the TV at %1$s. Check that it\'s on and on the same Wi‑Fi. Tap “TV” to pick another.</string>
+    <string name="status_vestel_key_failed">The TV didn\'t take that button (%1$s). Check that Virtual Remote is turned on in the TV\'s settings.</string>
+    <string name="status_vestel_connected">Connected to the Smart TV at %1$s. If buttons do nothing, turn on “Virtual Remote” in the TV\'s settings.</string>
+    <string name="status_no_response">The TV didn\'t respond (%1$s).</string>
+    <string name="status_muted">Muted</string>
+    <string name="status_volume">Volume %1$d</string>
+    <string name="status_sound_on">Sound on</string>
+    <string name="status_volume_failed">The TV didn\'t change the volume (%1$s).</string>
+    <string name="status_limited_with_volume">Connected to the Smart TV at %1$s. This TV lets the app change the volume, open YouTube and Netflix, and close them with Home or Back.</string>
+    <string name="status_limited">Connected to the Smart TV at %1$s. This TV lets the app open YouTube and Netflix, and close them with Home or Back.</string>
+    <string name="status_no_bt_equivalent">That button has no Bluetooth equivalent.</string>
+    <string name="status_button_unavailable">That button isn\'t available on this TV.</string>
+    <string name="status_not_connected">Not connected. Tap “TV” to connect.</string>
+    <string name="status_only_youtube_netflix">This TV can only open YouTube and Netflix from the app.</string>
+    <string name="status_limited_button">This TV doesn\'t let apps press that button yet. Volume, YouTube, Netflix, Home and Back work.</string>
+    <string name="status_no_volume">This TV doesn\'t let apps change the volume.</string>
+    <string name="status_connected_to">Connected to %1$s</string>
+    <string name="your_tv">your TV</string>
+    <string name="status_standby">TV is on standby. Press power to wake it.</string>
+    <string name="status_disconnected">Disconnected: %1$s. Tap “TV” to reconnect.</string>
+    <string name="status_finding">Finding %1$s…</string>
+    <string name="status_resolve_failed">Couldn\'t find that TV\'s address. Try entering its IP address.</string>
+
+    <!-- Pairing (Android TV) -->
+    <string name="status_pairing">Pairing with %1$s… look at the TV for a code.</string>
+    <string name="status_pairing_not_started">The TV didn\'t start pairing: %1$s</string>
+    <string name="pair_title">Enter the code on your TV</string>
+    <string name="pair_message">Your TV is showing a 6 character code.</string>
+    <string name="pair_hint">e.g. 4F2A9C</string>
+    <string name="pair_button">Pair</string>
+    <string name="status_pairing_cancelled">Pairing cancelled. Tap “TV” to try again.</string>
+    <string name="status_paired">Paired! Connecting…</string>
+    <string name="pair_code_format">The code is 6 characters, using 0–9 and A–F. Try again.</string>
+    <string name="pair_code_mismatch">That code doesn\'t match the one on the TV. Try again.</string>
+    <string name="pair_try_again">%1$s. Try again.</string>
+    <string name="status_pairing_failed">Pairing failed: %1$s</string>
+
+    <!-- TV list -->
+    <string name="picker_title">Choose your TV</string>
+    <string name="picker_searching">Searching your Wi‑Fi for TVs… (takes about 15 seconds)</string>
+    <string name="picker_use_bluetooth">Connect by Bluetooth instead</string>
+    <string name="picker_enter_ip">Enter IP address</string>
+    <string name="picker_tap_tv">Tap your TV:</string>
+    <string name="picker_nothing">Nothing answered on this Wi‑Fi. Is the TV on and on the same network?</string>
+    <string name="picker_none_supported">No supported TV found. Tap a device to see what it is.</string>
+    <string name="error_no_wifi">This phone isn\'t on Wi‑Fi.</string>
+    <string name="ip_title">TV\'s IP address</string>
+    <string name="ip_message">Find it on the TV under Settings → Network &amp; Internet → your Wi‑Fi.</string>
+
+    <!-- Unsupported TV and TV check -->
+    <string name="unsupported_title">Not a supported TV</string>
+    <string name="unsupported_message">This device at %1$s looks like:\n\n%2$s\n\nThis app fully controls Android TV / Google TV and controls some other Smart TVs in part. If this is your TV, tap “Check this TV” and send the report to the developer so support can be added.</string>
+    <string name="check_tv">Check this TV</string>
+    <string name="try_anyway">Try anyway</string>
+    <string name="check_title">TV check</string>
+    <string name="check_running">Checking %1$s… this takes up to a minute. Keep the app open.</string>
+    <string name="check_progress">Checking %1$s… %2$d%%</string>
+    <string name="check_done_hint">Tap Copy and send this report to the developer at github.com/icmrnbw/tv-remote/issues</string>
+
+    <!-- Bluetooth -->
+    <string name="bt_title">Bluetooth remote</string>
+    <string name="bt_needs_android9">Bluetooth remote needs Android 9 or newer.</string>
+    <string name="bt_permission_needed">Bluetooth permission is needed to work as the TV\'s Bluetooth remote.</string>
+    <string name="bt_no_paired">No paired devices yet. Tap “Pair a new TV”.</string>
+    <string name="bt_pair_new">Pair a new TV</string>
+    <string name="bt_not_visible">The phone needs to be visible for the TV to find it.</string>
+    <string name="bt_pair_title">Pair from the TV</string>
+    <string name="bt_pair_message">For the next 5 minutes this phone is visible as “%1$s”.\n\nOn the TV, open the Bluetooth settings (often under Network or System, or “Remote &amp; accessories”), search for devices, and pick this phone.\n\nKeep this app open. When the TV connects, the buttons start working.</string>
+    <string name="bt_connected_to">Connected by Bluetooth to %1$s</string>
+    <string name="bt_disconnected">Bluetooth disconnected. Tap “TV” to reconnect.</string>
+    <string name="bt_no_bluetooth">This phone has no Bluetooth.</string>
+    <string name="bt_turn_on">Turn on Bluetooth on the phone, then tap “TV” again.</string>
+    <string name="bt_starting">Starting Bluetooth remote…</string>
+    <string name="bt_ready">Bluetooth remote ready. Pair the TV with this phone.</string>
+    <string name="bt_connecting">Connecting by Bluetooth…</string>
+    <string name="bt_connect_failed">Couldn\'t start a Bluetooth connection to the TV.</string>
+
+    <!-- About and privacy -->
+    <string name="about_link">About · Privacy policy</string>
+    <string name="about_message">An independent remote app. It is not made by, endorsed by or affiliated with Rosso or any other TV maker.\n\nFull control: Android TV and Google TV.\nOther Smart TVs: some functions only (often volume, YouTube and Netflix).\nBluetooth mode: for TVs that accept a Bluetooth keyboard or remote.\n\nThe app talks to your TV only over your own Wi‑Fi or Bluetooth. It is free and shows ads.</string>
+    <string name="privacy_policy">Privacy policy</string>
+    <string name="ad_choices">Ad choices</string>
+    <string name="privacy_url" translatable="false">https://github.com/icmrnbw/tv-remote/blob/main/PRIVACY.md</string>
 </resources>

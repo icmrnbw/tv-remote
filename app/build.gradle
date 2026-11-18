@@ -4,35 +4,62 @@ plugins {
 
 def buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
 
+// Release signing comes from the environment (GitHub secrets in CI) or from an untracked
+// keystore.properties file for local builds. Nothing secret lives in the repository.
+def signingProps = new Properties()
+def signingFile = rootProject.file("keystore.properties")
+if (signingFile.exists()) signingFile.withInputStream { signingProps.load(it) }
+def signingValue = { String name -> System.getenv(name) ?: signingProps.getProperty(name) }
+def releaseStore = signingValue("RELEASE_KEYSTORE")
+def canSignRelease = releaseStore != null && file(releaseStore).exists()
+
+// AdMob IDs. Without real ones (and always in debug builds) the app shows Google's test ads.
+def testAdmobAppId = "ca-app-pub-3940256099942544~3347511713"
+def testBannerId = "ca-app-pub-3940256099942544/9214589741"
+def admobAppId = System.getenv("ADMOB_APP_ID") ?: testAdmobAppId
+def admobBannerId = System.getenv("ADMOB_BANNER_ID") ?: testBannerId
+// -PnoAds builds a copy without the banner, for store screenshots.
+def adsEnabled = !project.hasProperty("noAds")
+
 android {
     namespace "io.github.icmrnbw.tvremote"
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "io.github.icmrnbw.tvremote"
         minSdk 26
-        targetSdk 35
+        targetSdk 36
         versionCode buildNumber
-        versionName "1.0.${buildNumber}"
+        versionName "1.1.${buildNumber}"
+        buildConfigField "boolean", "ADS_ENABLED", "${adsEnabled}"
     }
 
-    // A fixed key so each new APK installs as an update over the previous one.
+    buildFeatures {
+        buildConfig true
+    }
+
     signingConfigs {
-        shared {
-            storeFile file("remote.keystore")
-            storePassword "rossoremote"
-            keyAlias "remote"
-            keyPassword "rossoremote"
+        if (canSignRelease) {
+            release {
+                storeFile file(releaseStore)
+                storePassword signingValue("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias signingValue("RELEASE_KEY_ALIAS")
+                keyPassword signingValue("RELEASE_KEY_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig signingConfigs.shared
+            applicationIdSuffix ".debug"
+            manifestPlaceholders = [admobAppId: testAdmobAppId]
+            buildConfigField "String", "ADMOB_BANNER_ID", "\"${testBannerId}\""
         }
         release {
             minifyEnabled false
-            signingConfig signingConfigs.shared
+            manifestPlaceholders = [admobAppId: admobAppId]
+            buildConfigField "String", "ADMOB_BANNER_ID", "\"${admobBannerId}\""
+            if (canSignRelease) signingConfig signingConfigs.release
         }
     }
 
@@ -44,4 +71,9 @@ android {
     lint {
         abortOnError false
     }
+}
+
+dependencies {
+    implementation "com.google.android.gms:play-services-ads:25.0.0"
+    implementation "com.google.android.ump:user-messaging-platform:3.1.0"
 }
