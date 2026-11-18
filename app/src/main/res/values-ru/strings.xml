@@ -1,0 +1,104 @@
+<resources>
+    <string name="key_tv">ТВ</string>
+    <string name="key_power">Питание</string>
+    <string name="key_input">Источник</string>
+    <string name="key_mute">Без звука</string>
+    <string name="key_back">↩ Назад</string>
+    <string name="key_home">⌂ Домой</string>
+    <string name="key_menu">☰ Меню</string>
+    <string name="key_vol">ГРОМК</string>
+    <string name="key_ch">КАН</string>
+    <string name="label_apps">Приложения</string>
+    <string name="key_numbers">123  Цифры</string>
+    <string name="key_guide">Гид</string>
+    <string name="key_info">Инфо</string>
+
+    <string name="ok">OK</string>
+    <string name="cancel">Отмена</string>
+    <string name="back">Назад</string>
+    <string name="close">Закрыть</string>
+    <string name="copy">Копировать</string>
+    <string name="copied">Скопировано</string>
+    <string name="connect">Подключить</string>
+
+    <string name="status_starting">Запуск…</string>
+    <string name="status_key_failed">Не удалось создать ключ безопасности телефона: %1$s</string>
+    <string name="status_connecting">Подключение к %1$s…</string>
+    <string name="status_unreachable">Телевизор %1$s не отвечает. Проверьте, что он включён и подключён к той же сети Wi‑Fi. Нажмите «ТВ», чтобы выбрать другой.</string>
+    <string name="status_vestel_key_failed">Телевизор не принял кнопку (%1$s). Проверьте, что в его настройках включён «Virtual Remote».</string>
+    <string name="status_vestel_connected">Подключено к Smart TV %1$s. Если кнопки не работают, включите «Virtual Remote» в настройках телевизора.</string>
+    <string name="status_no_response">Телевизор не ответил (%1$s).</string>
+    <string name="status_muted">Звук выключен</string>
+    <string name="status_volume">Громкость %1$d</string>
+    <string name="status_sound_on">Звук включён</string>
+    <string name="status_volume_failed">Телевизор не изменил громкость (%1$s).</string>
+    <string name="status_limited_with_volume">Подключено к Smart TV %1$s. На этом телевизоре приложение может менять громкость, открывать YouTube и Netflix и закрывать их кнопками «Домой» или «Назад».</string>
+    <string name="status_limited">Подключено к Smart TV %1$s. На этом телевизоре приложение может открывать YouTube и Netflix и закрывать их кнопками «Домой» или «Назад».</string>
+    <string name="status_no_bt_equivalent">У этой кнопки нет аналога в Bluetooth.</string>
+    <string name="status_button_unavailable">Эта кнопка недоступна на этом телевизоре.</string>
+    <string name="status_not_connected">Нет подключения. Нажмите «ТВ», чтобы подключиться.</string>
+    <string name="status_only_youtube_netflix">На этом телевизоре приложение может открыть только YouTube и Netflix.</string>
+    <string name="status_limited_button">Этот телевизор пока не позволяет приложениям нажимать эту кнопку. Работают громкость, YouTube, Netflix, «Домой» и «Назад».</string>
+    <string name="status_no_volume">Этот телевизор не позволяет приложениям менять громкость.</string>
+    <string name="status_connected_to">Подключено: %1$s</string>
+    <string name="your_tv">ваш телевизор</string>
+    <string name="status_standby">Телевизор в режиме ожидания. Нажмите «Питание», чтобы включить.</string>
+    <string name="status_disconnected">Отключено: %1$s. Нажмите «ТВ», чтобы подключиться снова.</string>
+    <string name="status_finding">Поиск %1$s…</string>
+    <string name="status_resolve_failed">Не удалось узнать адрес телевизора. Попробуйте ввести IP-адрес.</string>
+
+    <string name="status_pairing">Сопряжение с %1$s… код появится на экране телевизора.</string>
+    <string name="status_pairing_not_started">Телевизор не начал сопряжение: %1$s</string>
+    <string name="pair_title">Введите код с телевизора</string>
+    <string name="pair_message">На телевизоре показан код из 6 символов.</string>
+    <string name="pair_hint">например, 4F2A9C</string>
+    <string name="pair_button">Подключить</string>
+    <string name="status_pairing_cancelled">Сопряжение отменено. Нажмите «ТВ», чтобы попробовать снова.</string>
+    <string name="status_paired">Готово! Подключение…</string>
+    <string name="pair_code_format">Код состоит из 6 символов: цифры 0–9 и буквы A–F. Попробуйте ещё раз.</string>
+    <string name="pair_code_mismatch">Код не совпадает с кодом на телевизоре. Попробуйте ещё раз.</string>
+    <string name="pair_try_again">%1$s. Попробуйте ещё раз.</string>
+    <string name="status_pairing_failed">Сопряжение не удалось: %1$s</string>
+
+    <string name="picker_title">Выберите телевизор</string>
+    <string name="picker_searching">Ищем телевизоры в вашей сети Wi‑Fi… (около 15 секунд)</string>
+    <string name="picker_use_bluetooth">Подключить по Bluetooth</string>
+    <string name="picker_enter_ip">Ввести IP-адрес</string>
+    <string name="picker_tap_tv">Выберите свой телевизор:</string>
+    <string name="picker_nothing">В этой сети Wi‑Fi никто не ответил. Телевизор включён и подключён к той же сети?</string>
+    <string name="picker_none_supported">Поддерживаемых телевизоров не найдено. Нажмите на устройство, чтобы узнать, что это.</string>
+    <string name="error_no_wifi">Телефон не подключён к Wi‑Fi.</string>
+    <string name="ip_title">IP-адрес телевизора</string>
+    <string name="ip_message">Его можно найти на телевизоре: Настройки → Сеть и Интернет → ваша сеть Wi‑Fi.</string>
+
+    <string name="unsupported_title">Телевизор не поддерживается</string>
+    <string name="unsupported_message">Устройство %1$s похоже на:\n\n%2$s\n\nПриложение полностью управляет Android TV / Google TV, а некоторыми другими Smart TV — частично. Если это ваш телевизор, нажмите «Проверить телевизор» и отправьте отчёт разработчику, чтобы добавить поддержку.</string>
+    <string name="check_tv">Проверить телевизор</string>
+    <string name="try_anyway">Всё равно попробовать</string>
+    <string name="check_title">Проверка телевизора</string>
+    <string name="check_running">Проверяем %1$s… это займёт до минуты. Не закрывайте приложение.</string>
+    <string name="check_progress">Проверяем %1$s… %2$d%%</string>
+    <string name="check_done_hint">Нажмите «Копировать» и отправьте отчёт разработчику: github.com/icmrnbw/tv-remote/issues</string>
+
+    <string name="bt_title">Пульт по Bluetooth</string>
+    <string name="bt_needs_android9">Для пульта по Bluetooth нужен Android 9 или новее.</string>
+    <string name="bt_permission_needed">Нужно разрешение Bluetooth, чтобы телефон работал как Bluetooth-пульт.</string>
+    <string name="bt_no_paired">Сопряжённых устройств пока нет. Нажмите «Добавить телевизор».</string>
+    <string name="bt_pair_new">Добавить телевизор</string>
+    <string name="bt_not_visible">Телефон должен быть видимым, чтобы телевизор его нашёл.</string>
+    <string name="bt_pair_title">Сопряжение с телевизора</string>
+    <string name="bt_pair_message">Следующие 5 минут телефон виден как «%1$s».\n\nНа телевизоре откройте настройки Bluetooth (обычно в разделе «Сеть», «Система» или «Пульты и аксессуары»), запустите поиск устройств и выберите этот телефон.\n\nНе закрывайте приложение. Когда телевизор подключится, кнопки заработают.</string>
+    <string name="bt_connected_to">Подключено по Bluetooth: %1$s</string>
+    <string name="bt_disconnected">Bluetooth отключён. Нажмите «ТВ», чтобы подключиться снова.</string>
+    <string name="bt_no_bluetooth">В этом телефоне нет Bluetooth.</string>
+    <string name="bt_turn_on">Включите Bluetooth на телефоне и снова нажмите «ТВ».</string>
+    <string name="bt_starting">Запуск Bluetooth-пульта…</string>
+    <string name="bt_ready">Bluetooth-пульт готов. Выполните сопряжение телевизора с этим телефоном.</string>
+    <string name="bt_connecting">Подключение по Bluetooth…</string>
+    <string name="bt_connect_failed">Не удалось начать подключение к телевизору по Bluetooth.</string>
+
+    <string name="about_link">О приложении · Конфиденциальность</string>
+    <string name="about_message">Независимое приложение-пульт. Оно не создано, не одобрено и не связано с Rosso или другими производителями телевизоров.\n\nПолное управление: Android TV и Google TV.\nДругие Smart TV: только часть функций (обычно громкость, YouTube и Netflix).\nРежим Bluetooth: для телевизоров, которые принимают Bluetooth-клавиатуру или пульт.\n\nПриложение связывается с телевизором только через вашу сеть Wi‑Fi или Bluetooth. Оно бесплатное и показывает рекламу.</string>
+    <string name="privacy_policy">Политика конфиденциальности</string>
+    <string name="ad_choices">Настройки рекламы</string>
+</resources>

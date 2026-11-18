@@ -68,6 +68,8 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
     private volatile DlnaClient dlna;
     private TextView status;
     private LinearLayout numberPad;
+    private android.widget.FrameLayout adSlot;
+    private Ads ads;
 
     private static final int REQUEST_BLUETOOTH = 1;
     private static final int REQUEST_DISCOVERABLE = 2;
@@ -85,7 +87,21 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         prefs = getSharedPreferences("tv", MODE_PRIVATE);
         nsd = (NsdManager) getSystemService(Context.NSD_SERVICE);
         setContentView(buildRemote());
+        ads = new Ads(this, adSlot);
+        ads.start();
         net.execute(this::loadIdentity);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        ads.resume();
+    }
+
+    @Override
+    protected void onPause() {
+        ads.pause();
+        super.onPause();
     }
 
     @Override
@@ -115,6 +131,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
 
     @Override
     protected void onDestroy() {
+        ads.destroy();
         super.onDestroy();
         net.shutdown();
     }
@@ -135,12 +152,12 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
                     .putString("cert", Base64.encodeToString(identity.encodedCertificate(), Base64.NO_WRAP))
                     .apply();
         } catch (Exception e) {
-            setStatus("Couldn't create this phone's security key: " + e.getMessage());
+            setStatus(getString(R.string.status_key_failed, e.getMessage()));
         }
     }
 
     private void connect(String host) {
-        setStatus("Connecting to " + host + "…");
+        setStatus(getString(R.string.status_connecting, host));
         net.execute(() -> {
             closeClients();
             boolean knownVestel = host.equals(prefs.getString("host", null))
@@ -157,7 +174,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
             } catch (IOException e) {
                 // Not an Android TV; maybe a Vestel-made Smart TV.
                 if (connectVestel(host)) return;
-                setStatus("Can't reach the TV at " + host + ". Check that it's on and on the same Wi‑Fi. Tap “TV” to pick another.");
+                setStatus(getString(R.string.status_unreachable, host));
             }
         });
     }
@@ -168,27 +185,25 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         prefs.edit().putString("host", host).putString("kind", "vestel").apply();
         if (VestelClient.hasSmartCenter(host)) {
             dialOnly = false;
-            vestel = new VestelClient(host, reason -> setStatus("The TV didn't take that button (" + reason
-                    + "). Check that Virtual Remote is turned on in the TV's settings."));
-            setStatus("Connected to the Smart TV at " + host
-                    + ". If buttons do nothing, turn on “Virtual Remote” in the TV's settings.");
+            vestel = new VestelClient(host, reason -> setStatus(getString(R.string.status_vestel_key_failed, reason)));
+            setStatus(getString(R.string.status_vestel_connected, host));
             return true;
         }
         dialOnly = true;
-        vestel = new VestelClient(host, reason -> setStatus("The TV didn't respond (" + reason + ")."));
+        vestel = new VestelClient(host, reason -> setStatus(getString(R.string.status_no_response, reason)));
         dlna = DlnaClient.find(host, null, new DlnaClient.Listener() {
             @Override public void onVolume(int volume, boolean muted) {
                 // This TV doesn't report its volume reliably, so remember what we set.
                 if (!muted && volume > 0) prefs.edit().putInt("volume", volume).apply();
-                setStatus(muted ? "Muted" : volume >= 0 ? "Volume " + volume : "Sound on");
+                setStatus(muted ? getString(R.string.status_muted) : volume >= 0
+                        ? getString(R.string.status_volume, volume) : getString(R.string.status_sound_on));
             }
             @Override public void onSendFailed(String reason) {
-                setStatus("The TV didn't change the volume (" + reason + ").");
+                setStatus(getString(R.string.status_volume_failed, reason));
             }
         });
         if (dlna != null) dlna.setKnownVolume(prefs.getInt("volume", -1));
-        setStatus("Connected to the Smart TV at " + host + ". This TV lets the app change "
-                + (dlna != null ? "the volume, " : "") + "open YouTube and Netflix, and close them with Home or Back.");
+        setStatus(getString(dlna != null ? R.string.status_limited_with_volume : R.string.status_limited, host));
         return true;
     }
 
@@ -205,13 +220,13 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
     }
 
     private void startPairing(String host) {
-        setStatus("Pairing with " + host + "… look at the TV for a code.");
+        setStatus(getString(R.string.status_pairing, host));
         PairingSession pairing = new PairingSession(host, identity, deviceName());
         try {
             pairing.start();
         } catch (IOException e) {
             pairing.close();
-            setStatus("The TV didn't start pairing: " + e.getMessage());
+            setStatus(getString(R.string.status_pairing_not_started, e.getMessage()));
             return;
         }
         ui.post(() -> askForCode(host, pairing, null));
@@ -226,7 +241,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
                 | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(6), new InputFilter.AllCaps()});
-        input.setHint("e.g. 4F2A9C");
+        input.setHint(R.string.pair_hint);
         input.setGravity(Gravity.CENTER);
         input.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
         LinearLayout box = new LinearLayout(this);
@@ -235,17 +250,17 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
                 ViewGroup.LayoutParams.WRAP_CONTENT));
 
         new AlertDialog.Builder(this)
-                .setTitle("Enter the code on your TV")
-                .setMessage(error != null ? error : "Your TV is showing a 6 character code.")
+                .setTitle(R.string.pair_title)
+                .setMessage(error != null ? error : getString(R.string.pair_message))
                 .setView(box)
                 .setCancelable(false)
-                .setPositiveButton("Pair", (d, w) -> {
+                .setPositiveButton(R.string.pair_button, (d, w) -> {
                     String code = input.getText().toString();
                     net.execute(() -> finishPairing(host, pairing, code));
                 })
-                .setNegativeButton("Cancel", (d, w) -> {
+                .setNegativeButton(R.string.cancel, (d, w) -> {
                     net.execute(pairing::close);
-                    setStatus("Pairing cancelled. Tap “TV” to try again.");
+                    setStatus(getString(R.string.status_pairing_cancelled));
                 })
                 .show();
         input.requestFocus();
@@ -255,24 +270,31 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         try {
             pairing.finish(code);
             pairing.close();
-            setStatus("Paired! Connecting…");
+            setStatus(getString(R.string.status_paired));
             connect(host);
         } catch (PairingSession.WrongCodeException e) {
             if (e.getMessage() != null && e.getMessage().startsWith("The TV rejected")) {
                 pairing.close();
                 startPairing(host);
             } else {
-                ui.post(() -> askForCode(host, pairing, e.getMessage() + ". Try again."));
+                ui.post(() -> askForCode(host, pairing, wrongCodeMessage(e.getMessage())));
             }
         } catch (IOException e) {
             pairing.close();
-            setStatus("Pairing failed: " + e.getMessage());
+            setStatus(getString(R.string.status_pairing_failed, e.getMessage()));
         }
+    }
+
+    /** The pairing errors the user can fix, in the app's language. */
+    private String wrongCodeMessage(String reason) {
+        if (reason != null && reason.startsWith("The code is")) return getString(R.string.pair_code_format);
+        if (reason != null && reason.startsWith("That code doesn't match")) return getString(R.string.pair_code_mismatch);
+        return getString(R.string.pair_try_again, reason);
     }
 
     private void send(int keyCode) {
         if (bluetooth != null && bluetooth.isConnected()) {
-            if (!bluetooth.sendKey(keyCode)) setStatus("That button has no Bluetooth equivalent.");
+            if (!bluetooth.sendKey(keyCode)) setStatus(getString(R.string.status_no_bt_equivalent));
             return;
         }
         VestelClient v = vestel;
@@ -285,13 +307,13 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
             if (code > 0) {
                 v.sendKey(code);
             } else {
-                setStatus("That button isn't available on this TV.");
+                setStatus(getString(R.string.status_button_unavailable));
             }
             return;
         }
         RemoteClient r = remote;
         if (r == null) {
-            setStatus("Not connected. Tap “TV” to connect.");
+            setStatus(getString(R.string.status_not_connected));
             return;
         }
         r.sendKey(keyCode);
@@ -305,7 +327,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
             } else if (link.contains("netflix")) {
                 v.launchApp("Netflix");
             } else {
-                setStatus("This TV can only open YouTube and Netflix from the app.");
+                setStatus(getString(R.string.status_only_youtube_netflix));
             }
             return;
         }
@@ -330,10 +352,10 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
                 if (d != null) d.toggleMute();
                 break;
             default:
-                setStatus("This TV doesn't let apps press that button yet. Volume, YouTube, Netflix, Home and Back work.");
+                setStatus(getString(R.string.status_limited_button));
                 return;
         }
-        if (d == null) setStatus("This TV doesn't let apps change the volume.");
+        if (d == null) setStatus(getString(R.string.status_no_volume));
     }
 
     /** Android key codes to the codes Vestel's virtual remote uses; -1 if there's none. */
@@ -374,12 +396,12 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
     @Override
     public void onReady(String tvName) {
         prefs.edit().putString("tvName", tvName).apply();
-        setStatus("Connected to " + (tvName.isEmpty() ? "your TV" : tvName));
+        setStatus(getString(R.string.status_connected_to, tvName.isEmpty() ? getString(R.string.your_tv) : tvName));
     }
 
     @Override
     public void onPowerChanged(boolean on) {
-        if (!on) setStatus("TV is on standby. Press power to wake it.");
+        if (!on) setStatus(getString(R.string.status_standby));
     }
 
     @Override
@@ -389,7 +411,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
 
     @Override
     public void onDisconnected(String reason) {
-        setStatus("Disconnected: " + reason + ". Tap “TV” to reconnect.");
+        setStatus(getString(R.string.status_disconnected, reason));
         remote = null;
     }
 
@@ -425,11 +447,11 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         ListView list = new ListView(this);
         list.setAdapter(adapter);
         TextView empty = new TextView(this);
-        empty.setText("Searching your Wi‑Fi for TVs… (takes about 15 seconds)");
+        empty.setText(R.string.picker_searching);
         empty.setPadding(dp(24), dp(16), dp(24), dp(16));
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        Button useBluetooth = pill("Connect by Bluetooth instead", BUTTON);
+        Button useBluetooth = pill(getString(R.string.picker_use_bluetooth), BUTTON);
         useBluetooth.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         LinearLayout.LayoutParams btParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44));
         btParams.setMargins(dp(24), dp(12), dp(24), 0);
@@ -438,10 +460,10 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         box.addView(list, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(280)));
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Choose your TV")
+                .setTitle(R.string.picker_title)
                 .setView(box)
-                .setNeutralButton("Enter IP address", (d, w) -> askForIp())
-                .setNegativeButton("Cancel", null)
+                .setNeutralButton(R.string.picker_enter_ip, (d, w) -> askForIp())
+                .setNegativeButton(R.string.cancel, null)
                 .setOnDismissListener(d -> stopDiscovery())
                 .show();
 
@@ -473,7 +495,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
             for (Candidate r : rows) if (r.key().equals(c.key())) return;
             rows.add(c);
             sort.run();
-            empty.setText("Tap your TV:");
+            empty.setText(R.string.picker_tap_tv);
         });
 
         new Thread(() -> {
@@ -494,17 +516,17 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
                 List<NetworkScanner.Device> devices = NetworkScanner.scan(progress);
                 boolean supported = false;
                 for (NetworkScanner.Device d : devices) supported |= d.isAndroidTv() || d.isVestel();
-                done = supported ? "Tap your TV:"
-                        : devices.isEmpty() ? "Nothing answered on this Wi‑Fi. Is the TV on and on the same network?"
-                        : "No supported TV found. Tap a device to see what it is.";
+                done = getString(supported ? R.string.picker_tap_tv
+                        : devices.isEmpty() ? R.string.picker_nothing
+                        : R.string.picker_none_supported);
             } catch (IOException e) {
-                done = e.getMessage();
+                done = getString(R.string.error_no_wifi);
             }
             String message = done;
             ui.post(() -> {
                 boolean nsdFound = false;
                 for (Candidate r : rows) nsdFound |= r.service != null;
-                empty.setText(nsdFound ? "Tap your TV:" : message);
+                empty.setText(nsdFound ? getString(R.string.picker_tap_tv) : message);
             });
         }, "tv-scan").start();
     }
@@ -514,7 +536,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
     /** Starts the phone's Bluetooth remote; then connects to {@code address} or offers a TV list. */
     private void startBluetooth(String address, boolean chooseTv) {
         if (Build.VERSION.SDK_INT < 28) {
-            setStatus("Bluetooth remote needs Android 9 or newer.");
+            setStatus(getString(R.string.bt_needs_android9));
             return;
         }
         if (Build.VERSION.SDK_INT >= 31) {
@@ -539,7 +561,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         if (requestCode != REQUEST_BLUETOOTH) return;
         for (int r : results) {
             if (r != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                setStatus("Bluetooth permission is needed to work as the TV's Bluetooth remote.");
+                setStatus(getString(R.string.bt_permission_needed));
                 return;
             }
         }
@@ -552,15 +574,15 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         List<String> names = new ArrayList<>();
         for (android.bluetooth.BluetoothDevice d : devices) names.add(BluetoothRemote.nameOf(d));
         new AlertDialog.Builder(this)
-                .setTitle("Bluetooth remote")
+                .setTitle(R.string.bt_title)
                 .setItems(names.toArray(new String[0]), (d, which) -> {
                     String address = devices.get(which).getAddress();
                     prefs.edit().putBoolean("useBluetooth", true).putString("btAddress", address).apply();
                     bluetooth.connect(address);
                 })
-                .setMessage(names.isEmpty() ? "No paired devices yet. Tap “Pair a new TV”." : null)
-                .setPositiveButton("Pair a new TV", (d, w) -> makeDiscoverable())
-                .setNegativeButton("Cancel", null)
+                .setMessage(names.isEmpty() ? getString(R.string.bt_no_paired) : null)
+                .setPositiveButton(R.string.bt_pair_new, (d, w) -> makeDiscoverable())
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -575,16 +597,13 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQUEST_DISCOVERABLE) return;
         if (resultCode == RESULT_CANCELED) {
-            setStatus("The phone needs to be visible for the TV to find it.");
+            setStatus(getString(R.string.bt_not_visible));
             return;
         }
         new AlertDialog.Builder(this)
-                .setTitle("Pair from the TV")
-                .setMessage("For the next 5 minutes this phone is visible as “" + deviceName() + "”.\n\n"
-                        + "On the TV, open the Bluetooth settings (often under Network or System, "
-                        + "or “Remote & accessories”), search for devices, and pick this phone.\n\n"
-                        + "Keep this app open. When the TV connects, the buttons start working.")
-                .setPositiveButton("OK", null)
+                .setTitle(R.string.bt_pair_title)
+                .setMessage(getString(R.string.bt_pair_message, deviceName()))
+                .setPositiveButton(R.string.ok, null)
                 .show();
     }
 
@@ -596,12 +615,12 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
     @Override
     public void onBluetoothConnected(String name, String address) {
         prefs.edit().putBoolean("useBluetooth", true).putString("btAddress", address).apply();
-        setStatus("Connected by Bluetooth to " + name);
+        setStatus(getString(R.string.bt_connected_to, name));
     }
 
     @Override
     public void onBluetoothDisconnected() {
-        setStatus("Bluetooth disconnected. Tap “TV” to reconnect.");
+        setStatus(getString(R.string.bt_disconnected));
     }
 
     private static int rank(Candidate c) {
@@ -612,13 +631,11 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
 
     private void explainUnsupported(NetworkScanner.Device device) {
         new AlertDialog.Builder(this)
-                .setTitle("Not an Android TV")
-                .setMessage("This device at " + device.ip + " looks like:\n\n" + device.describe()
-                        + "\n\nThis app controls Android TV / Google TV only. If this is your TV, "
-                        + "tap “Check this TV” and send the result to Claude so the app can be adapted to it.")
-                .setPositiveButton("Check this TV", (d, w) -> inspect(device))
-                .setNeutralButton("Try anyway", (d, w) -> connect(device.ip))
-                .setNegativeButton("Back", (d, w) -> showTvPicker())
+                .setTitle(R.string.unsupported_title)
+                .setMessage(getString(R.string.unsupported_message, device.ip, device.describe()))
+                .setPositiveButton(R.string.check_tv, (d, w) -> inspect(device))
+                .setNeutralButton(R.string.try_anyway, (d, w) -> connect(device.ip))
+                .setNegativeButton(R.string.back, (d, w) -> showTvPicker())
                 .show();
     }
 
@@ -626,28 +643,28 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         TextView text = new TextView(this);
         text.setPadding(dp(24), dp(16), dp(24), dp(16));
         text.setTextIsSelectable(true);
-        text.setText("Checking " + device.ip + "… this takes up to a minute. Keep the app open.");
+        text.setText(getString(R.string.check_running, device.ip));
         ScrollView scroll = new ScrollView(this);
         scroll.addView(text);
         String[] result = new String[1];
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("TV check")
+                .setTitle(R.string.check_title)
                 .setView(scroll)
-                .setPositiveButton("Copy", null)
-                .setNegativeButton("Close", null)
+                .setPositiveButton(R.string.copy, null)
+                .setNegativeButton(R.string.close, null)
                 .show();
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
             if (result[0] == null) return;
             ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             clipboard.setPrimaryClip(ClipData.newPlainText("TV check", result[0]));
-            ((Button) v).setText("Copied");
+            ((Button) v).setText(R.string.copied);
         });
         new Thread(() -> {
             String report = NetworkScanner.inspect(device, percent ->
-                    ui.post(() -> text.setText("Checking " + device.ip + "… " + percent + "%")));
+                    ui.post(() -> text.setText(getString(R.string.check_progress, device.ip, percent))));
             ui.post(() -> {
                 result[0] = report;
-                text.setText(report + "\nTap Copy and paste this to Claude.");
+                text.setText(report + "\n" + getString(R.string.check_done_hint));
             });
         }, "tv-inspect").start();
     }
@@ -688,11 +705,11 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
 
     @SuppressWarnings("deprecation")
     private void resolveAndConnect(NsdServiceInfo service) {
-        setStatus("Finding " + service.getServiceName() + "…");
+        setStatus(getString(R.string.status_finding, service.getServiceName()));
         nsd.resolveService(service, new NsdManager.ResolveListener() {
             @Override
             public void onResolveFailed(NsdServiceInfo s, int errorCode) {
-                setStatus("Couldn't find that TV's address. Try entering its IP address.");
+                setStatus(getString(R.string.status_resolve_failed));
             }
 
             @Override
@@ -712,14 +729,14 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         box.addView(input, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
         new AlertDialog.Builder(this)
-                .setTitle("TV's IP address")
-                .setMessage("Find it on the TV under Settings → Network & Internet → your Wi‑Fi.")
+                .setTitle(R.string.ip_title)
+                .setMessage(R.string.ip_message)
                 .setView(box)
-                .setPositiveButton("Connect", (d, w) -> {
+                .setPositiveButton(R.string.connect, (d, w) -> {
                     String host = input.getText().toString().trim();
                     if (!host.isEmpty()) connect(host);
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
@@ -734,18 +751,18 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         status = new TextView(this);
         status.setTextColor(MUTED_TEXT);
         status.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        status.setText("Starting…");
+        status.setText(R.string.status_starting);
         header.addView(status, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
-        Button tv = pill("TV", BUTTON);
+        Button tv = pill(getString(R.string.key_tv), BUTTON);
         tv.setOnClickListener(v -> showTvPicker());
         header.addView(tv, new LinearLayout.LayoutParams(dp(72), dp(44)));
         root.addView(header);
 
         root.addView(gap(16));
         LinearLayout top = row();
-        top.addView(key("Power", KeyEvent.KEYCODE_POWER, ROSSO, false), weight());
-        top.addView(key("Input", KeyEvent.KEYCODE_TV_INPUT, BUTTON, false), weight());
-        top.addView(key("Mute", KeyEvent.KEYCODE_VOLUME_MUTE, BUTTON, false), weight());
+        top.addView(key(getString(R.string.key_power), KeyEvent.KEYCODE_POWER, ROSSO, false), weight());
+        top.addView(key(getString(R.string.key_input), KeyEvent.KEYCODE_TV_INPUT, BUTTON, false), weight());
+        top.addView(key(getString(R.string.key_mute), KeyEvent.KEYCODE_VOLUME_MUTE, BUTTON, false), weight());
         top.addView(key("⚙", KeyEvent.KEYCODE_SETTINGS, BUTTON, false), weight());
         root.addView(top);
 
@@ -754,14 +771,14 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
 
         root.addView(gap(20));
         LinearLayout nav = row();
-        nav.addView(key("↩ Back", KeyEvent.KEYCODE_BACK, BUTTON, false), weight());
-        nav.addView(key("⌂ Home", KeyEvent.KEYCODE_HOME, BUTTON, false), weight());
-        nav.addView(key("☰ Menu", KeyEvent.KEYCODE_MENU, BUTTON, false), weight());
+        nav.addView(key(getString(R.string.key_back), KeyEvent.KEYCODE_BACK, BUTTON, false), weight());
+        nav.addView(key(getString(R.string.key_home), KeyEvent.KEYCODE_HOME, BUTTON, false), weight());
+        nav.addView(key(getString(R.string.key_menu), KeyEvent.KEYCODE_MENU, BUTTON, false), weight());
         root.addView(nav);
 
         root.addView(gap(12));
         LinearLayout rockers = row();
-        rockers.addView(rocker("VOL", KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN), column());
+        rockers.addView(rocker(getString(R.string.key_vol), KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN), column());
         LinearLayout media = new LinearLayout(this);
         media.setOrientation(LinearLayout.VERTICAL);
         media.addView(key("⏯", KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, BUTTON, false), fill(64));
@@ -770,11 +787,11 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         seek.addView(key("⏩", KeyEvent.KEYCODE_MEDIA_FAST_FORWARD, BUTTON, true), weight());
         media.addView(seek, fill(64));
         rockers.addView(media, column());
-        rockers.addView(rocker("CH", KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_CHANNEL_DOWN), column());
+        rockers.addView(rocker(getString(R.string.key_ch), KeyEvent.KEYCODE_CHANNEL_UP, KeyEvent.KEYCODE_CHANNEL_DOWN), column());
         root.addView(rockers);
 
         root.addView(gap(16));
-        root.addView(label("Apps"));
+        root.addView(label(getString(R.string.label_apps)));
         LinearLayout apps = row();
         apps.addView(app("YouTube", "https://www.youtube.com"), weight());
         apps.addView(app("Netflix", "netflix://"), weight());
@@ -783,7 +800,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         root.addView(apps);
 
         root.addView(gap(16));
-        Button numbers = pill("123  Number pad", BUTTON);
+        Button numbers = pill(getString(R.string.key_numbers), BUTTON);
         numbers.setOnClickListener(v -> numberPad.setVisibility(
                 numberPad.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
         root.addView(numbers, fill(48));
@@ -799,17 +816,66 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
             numberPad.addView(line);
         }
         LinearLayout last = row();
-        last.addView(key("Guide", KeyEvent.KEYCODE_GUIDE, BUTTON, false), weight());
+        last.addView(key(getString(R.string.key_guide), KeyEvent.KEYCODE_GUIDE, BUTTON, false), weight());
         last.addView(key("0", KeyEvent.KEYCODE_0, BUTTON, false), weight());
-        last.addView(key("Info", KeyEvent.KEYCODE_INFO, BUTTON, false), weight());
+        last.addView(key(getString(R.string.key_info), KeyEvent.KEYCODE_INFO, BUTTON, false), weight());
         numberPad.addView(last);
         root.addView(numberPad);
 
+        root.addView(gap(12));
+        TextView about = label(getString(R.string.about_link));
+        about.setGravity(Gravity.CENTER);
+        about.setPadding(dp(4), dp(12), dp(4), dp(12));
+        about.setOnClickListener(v -> showAbout());
+        root.addView(about, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
         ScrollView scroll = new ScrollView(this);
-        scroll.setBackgroundColor(BACKGROUND);
         scroll.setFillViewport(true);
         scroll.addView(root);
-        return scroll;
+
+        // The banner sits below the scrolling remote, never on top of a button.
+        adSlot = new android.widget.FrameLayout(this);
+        adSlot.setPadding(0, dp(8), 0, 0);
+
+        LinearLayout screen = new LinearLayout(this);
+        screen.setOrientation(LinearLayout.VERTICAL);
+        screen.setBackgroundColor(BACKGROUND);
+        screen.addView(scroll, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        screen.addView(adSlot, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        // Android 15+ draws apps edge to edge: keep the remote clear of the status and navigation bars.
+        screen.setOnApplyWindowInsetsListener((v, insets) -> {
+            v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
+                    insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+            return insets.consumeSystemWindowInsets();
+        });
+        return screen;
+    }
+
+    private void showAbout() {
+        String version = "";
+        try {
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (android.content.pm.PackageManager.NameNotFoundException ignored) {
+        }
+        AlertDialog.Builder about = new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.app_name) + " " + version)
+                .setMessage(R.string.about_message)
+                .setPositiveButton(R.string.privacy_policy, (d, w) -> openLink(getString(R.string.privacy_url)))
+                .setNegativeButton(R.string.close, null);
+        if (ads.privacyOptionsRequired()) {
+            about.setNeutralButton(R.string.ad_choices, (d, w) -> ads.showPrivacyOptions());
+        }
+        about.show();
+    }
+
+    private void openLink(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)));
+        } catch (android.content.ActivityNotFoundException e) {
+            setStatus(url);
+        }
     }
 
     private View dpad() {

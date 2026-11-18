@@ -1,0 +1,104 @@
+<resources>
+    <string name="key_tv">TV</string>
+    <string name="key_power">Yoqish</string>
+    <string name="key_input">Manba</string>
+    <string name="key_mute">Ovozsiz</string>
+    <string name="key_back">↩ Orqaga</string>
+    <string name="key_home">⌂ Bosh sahifa</string>
+    <string name="key_menu">☰ Menyu</string>
+    <string name="key_vol">OVOZ</string>
+    <string name="key_ch">KANAL</string>
+    <string name="label_apps">Ilovalar</string>
+    <string name="key_numbers">123  Raqamlar</string>
+    <string name="key_guide">Dastur</string>
+    <string name="key_info">Ma\'lumot</string>
+
+    <string name="ok">OK</string>
+    <string name="cancel">Bekor qilish</string>
+    <string name="back">Orqaga</string>
+    <string name="close">Yopish</string>
+    <string name="copy">Nusxalash</string>
+    <string name="copied">Nusxalandi</string>
+    <string name="connect">Ulash</string>
+
+    <string name="status_starting">Ishga tushmoqda…</string>
+    <string name="status_key_failed">Telefon xavfsizlik kalitini yaratib bo‘lmadi: %1$s</string>
+    <string name="status_connecting">%1$s ga ulanmoqda…</string>
+    <string name="status_unreachable">%1$s televizori javob bermayapti. U yoqilgan va xuddi shu Wi‑Fi tarmog‘iga ulanganini tekshiring. Boshqasini tanlash uchun “TV” tugmasini bosing.</string>
+    <string name="status_vestel_key_failed">Televizor tugmani qabul qilmadi (%1$s). Televizor sozlamalarida “Virtual Remote” yoqilganini tekshiring.</string>
+    <string name="status_vestel_connected">%1$s Smart TV ga ulandi. Tugmalar ishlamasa, televizor sozlamalarida “Virtual Remote” ni yoqing.</string>
+    <string name="status_no_response">Televizor javob bermadi (%1$s).</string>
+    <string name="status_muted">Ovoz o‘chirilgan</string>
+    <string name="status_volume">Ovoz %1$d</string>
+    <string name="status_sound_on">Ovoz yoqilgan</string>
+    <string name="status_volume_failed">Televizor ovozni o‘zgartirmadi (%1$s).</string>
+    <string name="status_limited_with_volume">%1$s Smart TV ga ulandi. Bu televizorda ilova ovozni o‘zgartira oladi, YouTube va Netflix ni ochadi hamda ularni “Bosh sahifa” yoki “Orqaga” bilan yopadi.</string>
+    <string name="status_limited">%1$s Smart TV ga ulandi. Bu televizorda ilova YouTube va Netflix ni ochadi hamda ularni “Bosh sahifa” yoki “Orqaga” bilan yopadi.</string>
+    <string name="status_no_bt_equivalent">Bu tugmaning Bluetooth dagi muqobili yo‘q.</string>
+    <string name="status_button_unavailable">Bu tugma ushbu televizorda mavjud emas.</string>
+    <string name="status_not_connected">Ulanmagan. Ulash uchun “TV” tugmasini bosing.</string>
+    <string name="status_only_youtube_netflix">Bu televizorda ilova faqat YouTube va Netflix ni ocha oladi.</string>
+    <string name="status_limited_button">Bu televizor hozircha ilovalarga bu tugmani bosishga ruxsat bermaydi. Ovoz, YouTube, Netflix, “Bosh sahifa” va “Orqaga” ishlaydi.</string>
+    <string name="status_no_volume">Bu televizor ilovalarga ovozni o‘zgartirishga ruxsat bermaydi.</string>
+    <string name="status_connected_to">Ulandi: %1$s</string>
+    <string name="your_tv">televizoringiz</string>
+    <string name="status_standby">Televizor kutish rejimida. Yoqish uchun “Yoqish” tugmasini bosing.</string>
+    <string name="status_disconnected">Uzildi: %1$s. Qayta ulash uchun “TV” tugmasini bosing.</string>
+    <string name="status_finding">%1$s qidirilmoqda…</string>
+    <string name="status_resolve_failed">Televizor manzilini aniqlab bo‘lmadi. IP manzilini kiritib ko‘ring.</string>
+
+    <string name="status_pairing">%1$s bilan bog‘lanmoqda… televizor ekranidagi kodga qarang.</string>
+    <string name="status_pairing_not_started">Televizor bog‘lanishni boshlamadi: %1$s</string>
+    <string name="pair_title">Televizordagi kodni kiriting</string>
+    <string name="pair_message">Televizoringizda 6 belgili kod ko‘rsatilgan.</string>
+    <string name="pair_hint">masalan, 4F2A9C</string>
+    <string name="pair_button">Bog‘lash</string>
+    <string name="status_pairing_cancelled">Bog‘lanish bekor qilindi. Qayta urinish uchun “TV” tugmasini bosing.</string>
+    <string name="status_paired">Bog‘landi! Ulanmoqda…</string>
+    <string name="pair_code_format">Kod 6 belgidan iborat: 0–9 raqamlari va A–F harflari. Qayta urinib ko‘ring.</string>
+    <string name="pair_code_mismatch">Kod televizordagi kod bilan mos kelmadi. Qayta urinib ko‘ring.</string>
+    <string name="pair_try_again">%1$s. Qayta urinib ko‘ring.</string>
+    <string name="status_pairing_failed">Bog‘lanib bo‘lmadi: %1$s</string>
+
+    <string name="picker_title">Televizoringizni tanlang</string>
+    <string name="picker_searching">Wi‑Fi tarmog‘ingizdan televizorlar qidirilmoqda… (taxminan 15 soniya)</string>
+    <string name="picker_use_bluetooth">Bluetooth orqali ulash</string>
+    <string name="picker_enter_ip">IP manzilni kiritish</string>
+    <string name="picker_tap_tv">Televizoringizni tanlang:</string>
+    <string name="picker_nothing">Bu Wi‑Fi tarmog‘ida hech narsa javob bermadi. Televizor yoqilgan va shu tarmoqqa ulanganmi?</string>
+    <string name="picker_none_supported">Qo‘llab-quvvatlanadigan televizor topilmadi. Qurilma nima ekanini bilish uchun ustiga bosing.</string>
+    <string name="error_no_wifi">Telefon Wi‑Fi ga ulanmagan.</string>
+    <string name="ip_title">Televizorning IP manzili</string>
+    <string name="ip_message">Uni televizorda topish mumkin: Sozlamalar → Tarmoq va Internet → Wi‑Fi tarmog‘ingiz.</string>
+
+    <string name="unsupported_title">Televizor qo‘llab-quvvatlanmaydi</string>
+    <string name="unsupported_message">%1$s qurilmasi quyidagiga o‘xshaydi:\n\n%2$s\n\nIlova Android TV / Google TV ni to‘liq, ba\'zi boshqa Smart TV larni esa qisman boshqaradi. Agar bu sizning televizoringiz bo‘lsa, “Televizorni tekshirish” tugmasini bosing va hisobotni dasturchiga yuboring.</string>
+    <string name="check_tv">Televizorni tekshirish</string>
+    <string name="try_anyway">Baribir urinib ko‘rish</string>
+    <string name="check_title">Televizorni tekshirish</string>
+    <string name="check_running">%1$s tekshirilmoqda… bu bir daqiqagacha davom etadi. Ilovani yopmang.</string>
+    <string name="check_progress">%1$s tekshirilmoqda… %2$d%%</string>
+    <string name="check_done_hint">“Nusxalash” tugmasini bosing va hisobotni dasturchiga yuboring: github.com/icmrnbw/tv-remote/issues</string>
+
+    <string name="bt_title">Bluetooth pult</string>
+    <string name="bt_needs_android9">Bluetooth pult uchun Android 9 yoki undan yangisi kerak.</string>
+    <string name="bt_permission_needed">Telefon televizor uchun Bluetooth pult bo‘lib ishlashi uchun Bluetooth ruxsati kerak.</string>
+    <string name="bt_no_paired">Hali bog‘langan qurilmalar yo‘q. “Yangi televizor qo‘shish” tugmasini bosing.</string>
+    <string name="bt_pair_new">Yangi televizor qo‘shish</string>
+    <string name="bt_not_visible">Televizor telefonni topishi uchun telefon ko‘rinadigan bo‘lishi kerak.</string>
+    <string name="bt_pair_title">Televizordan bog‘lash</string>
+    <string name="bt_pair_message">Keyingi 5 daqiqa davomida telefon “%1$s” nomi bilan ko‘rinadi.\n\nTelevizorda Bluetooth sozlamalarini oching (odatda “Tarmoq”, “Tizim” yoki “Pultlar va aksessuarlar” bo‘limida), qurilmalarni qidiring va shu telefonni tanlang.\n\nIlovani yopmang. Televizor ulanganda tugmalar ishlay boshlaydi.</string>
+    <string name="bt_connected_to">Bluetooth orqali ulandi: %1$s</string>
+    <string name="bt_disconnected">Bluetooth uzildi. Qayta ulash uchun “TV” tugmasini bosing.</string>
+    <string name="bt_no_bluetooth">Bu telefonda Bluetooth yo‘q.</string>
+    <string name="bt_turn_on">Telefonda Bluetooth ni yoqing, so‘ng yana “TV” tugmasini bosing.</string>
+    <string name="bt_starting">Bluetooth pult ishga tushmoqda…</string>
+    <string name="bt_ready">Bluetooth pult tayyor. Televizorni shu telefon bilan bog‘lang.</string>
+    <string name="bt_connecting">Bluetooth orqali ulanmoqda…</string>
+    <string name="bt_connect_failed">Televizorga Bluetooth orqali ulanishni boshlab bo‘lmadi.</string>
+
+    <string name="about_link">Ilova haqida · Maxfiylik siyosati</string>
+    <string name="about_message">Mustaqil pult ilovasi. U Rosso yoki boshqa televizor ishlab chiqaruvchilari tomonidan yaratilmagan, ma\'qullanmagan va ular bilan bog‘liq emas.\n\nTo‘liq boshqaruv: Android TV va Google TV.\nBoshqa Smart TV lar: faqat ayrim funksiyalar (odatda ovoz, YouTube va Netflix).\nBluetooth rejimi: Bluetooth klaviatura yoki pultni qabul qiladigan televizorlar uchun.\n\nIlova televizor bilan faqat sizning Wi‑Fi tarmog‘ingiz yoki Bluetooth orqali bog‘lanadi. Ilova bepul va reklama ko‘rsatadi.</string>
+    <string name="privacy_policy">Maxfiylik siyosati</string>
+    <string name="ad_choices">Reklama sozlamalari</string>
+</resources>

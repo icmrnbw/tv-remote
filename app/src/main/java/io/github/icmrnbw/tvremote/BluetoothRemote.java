@@ -65,11 +65,11 @@ final class BluetoothRemote {
         BluetoothManager manager = context.getSystemService(BluetoothManager.class);
         adapter = manager == null ? null : manager.getAdapter();
         if (adapter == null) {
-            listener.onBluetoothStatus("This phone has no Bluetooth.");
+            listener.onBluetoothStatus(context.getString(R.string.bt_no_bluetooth));
             return;
         }
         if (!adapter.isEnabled()) {
-            listener.onBluetoothStatus("Turn on Bluetooth on the phone, then tap “TV” again.");
+            listener.onBluetoothStatus(context.getString(R.string.bt_turn_on));
             return;
         }
         if (hid != null) {
@@ -92,7 +92,7 @@ final class BluetoothRemote {
                 registered = false;
             }
         }, BluetoothProfile.HID_DEVICE);
-        listener.onBluetoothStatus("Starting Bluetooth remote…");
+        listener.onBluetoothStatus(context.getString(R.string.bt_starting));
     }
 
     private final BluetoothHidDevice.Callback callback = new BluetoothHidDevice.Callback() {
@@ -103,7 +103,7 @@ final class BluetoothRemote {
             if (pendingAddress != null) {
                 connect(pendingAddress);
             } else {
-                listener.onBluetoothStatus("Bluetooth remote ready. Pair the TV with this phone.");
+                listener.onBluetoothStatus(context.getString(R.string.bt_ready));
             }
         }
 
@@ -122,9 +122,9 @@ final class BluetoothRemote {
     void connect(String address) {
         pendingAddress = address;
         if (hid == null || !registered) return;
-        listener.onBluetoothStatus("Connecting by Bluetooth…");
+        listener.onBluetoothStatus(context.getString(R.string.bt_connecting));
         if (!hid.connect(adapter.getRemoteDevice(address))) {
-            listener.onBluetoothStatus("Couldn't start a Bluetooth connection to the TV.");
+            listener.onBluetoothStatus(context.getString(R.string.bt_connect_failed));
         }
     }
 

@@ -1,25 +1,21 @@
 # Rosso Remote
 
-An Android app that turns your phone into a remote for a Rosso smart TV over
-Wi‑Fi. It works with two kinds of TV:
+An Android app that turns your phone into a TV remote over Wi‑Fi or Bluetooth.
+In English, Russian and Uzbek. Free, with ads (Google AdMob). It is an independent app,
+not made by or affiliated with Rosso or any TV maker.
 
-- **Vestel-made Smart TVs** (sold as Rosso, Toshiba, JVC, Hitachi, Telefunken,
-  Finlux and others), which take "virtual remote" commands on port 56789. Turn
-  on **Virtual Remote** in the TV's settings for these.
-- **Android TV / Google TV**, using the same protocol as Google's TV remote.
+What it can control, honestly:
 
-For TVs with Bluetooth, **Connect by Bluetooth instead** (in the TV list) makes
-the phone a Bluetooth keyboard and media remote: pair the TV with the phone
-from the TV's Bluetooth settings, and every button is sent as a standard
-Bluetooth remote key (Android 9+).
+| TV | What works |
+|---|---|
+| **Android TV / Google TV** (incl. Rosso Android models, TV sticks) | Every button. Uses the same protocol as Google's own TV remote. |
+| **Rosso Linux Smart TVs** and other TVs that only offer DIAL/DLNA | Volume, mute, opening YouTube and Netflix, closing them with Home or Back. |
+| **Vestel-made Smart TVs** with "Virtual Remote" turned on | Most buttons (from the published Vestel protocol; not tested on a real TV). |
+| **TVs with Bluetooth** that accept a keyboard/remote | Experimental Bluetooth remote mode (Android 9+); not yet tested on a real TV. |
 
-Other Linux smart TVs that only offer YouTube/Netflix casting (DIAL) and a
-media renderer (DLNA) get a limited remote: volume and mute, opening YouTube
-and Netflix, and closing them with Home or Back.
-
-**Download:** [rosso-remote.apk](https://github.com/icmrnbw/tv-remote/releases/latest/download/rosso-remote.apk)
-(Android 8.0 or newer). Open the file on your phone and allow installing from
-your browser or file manager when Android asks.
+**Download:** Google Play (coming soon), or the APK from
+[releases](https://github.com/icmrnbw/tv-remote/releases/latest/download/rosso-remote.apk)
+(Android 8.0 or newer). [Privacy policy](PRIVACY.md).
 
 ## Using it
 
@@ -53,10 +49,12 @@ runs, which is the starting point for adding support.
 
 ## Building
 
-GitHub Actions builds the APK on every push to `main` and publishes it as a
-release. To build locally with the Android SDK installed:
+GitHub Actions builds a signed APK and App Bundle on every push to `main` and publishes them as a
+release; signing keys and AdMob IDs come from repository secrets and variables (see
+[RELEASE.md](RELEASE.md)). To build locally with the Android SDK installed:
 
-    ./gradlew assembleRelease
+    ./gradlew assembleDebug          # test ads, debug key
+    ./gradlew bundleRelease          # needs RELEASE_KEYSTORE etc. in the environment or keystore.properties
 
-The APK is signed with `app/remote.keystore` so new versions install as
-updates over old ones. `tools/` has a protocol test against a simulated TV.
+`tools/` has a protocol test against a simulated TV, `tools/store/make_graphics.py` draws the
+store graphics, and the **Store screenshots** workflow takes Play screenshots on an emulator.
