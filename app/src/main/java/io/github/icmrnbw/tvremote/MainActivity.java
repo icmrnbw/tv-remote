@@ -2,6 +2,7 @@ package io.github.icmrnbw.tvremote;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -17,16 +18,19 @@ import android.os.Bundle;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.Looper;
+import android.speech.RecognizerIntent;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.util.Base64;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
+import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -71,6 +75,7 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
 
     private static final int REQUEST_BLUETOOTH = 1;
     private static final int REQUEST_DISCOVERABLE = 2;
+    private static final int REQUEST_SPEECH = 3;
     private BluetoothRemote bluetooth;
     private String pendingBluetoothAddress;
     private boolean pendingPairNew;
@@ -311,6 +316,111 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         }
         RemoteClient r = remote;
         if (r != null) r.launchApp(link);
+    }
+
+    // --- Typing on the TV ---
+
+    /** Opens the phone's speech recognizer; what it hears is typed on the TV. */
+    private void listen() {
+        Intent speech = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                .putExtra(RecognizerIntent.EXTRA_PROMPT, "Say what to type on the TV")
+                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        try {
+            startActivityForResult(speech, REQUEST_SPEECH);
+        } catch (ActivityNotFoundException e) {
+            setStatus("This phone has no voice typing. Tap “Type” to use the keyboard instead.");
+        }
+    }
+
+    private void askForText() {
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        input.setSingleLine(true);
+        input.setImeOptions(EditorInfo.IME_ACTION_SEND);
+        input.setHint("e.g. lofi music");
+        LinearLayout box = new LinearLayout(this);
+        box.setPadding(dp(24), dp(8), dp(24), 0);
+        box.addView(input, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Type on the TV")
+                .setMessage("Open a search box on the TV first, e.g. in YouTube.")
+                .setView(box)
+                .setPositiveButton("Send", (d, w) -> typeOnTv(input.getText().toString()))
+                .setNegativeButton("Cancel", null)
+                .create();
+        input.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId != EditorInfo.IME_ACTION_SEND) return false;
+            dialog.dismiss();
+            typeOnTv(input.getText().toString());
+            return true;
+        });
+        dialog.getWindow().setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE);
+        dialog.show();
+        input.requestFocus();
+    }
+
+    /** Types {@code text} into whatever text field is open on the TV. */
+    private void typeOnTv(String raw) {
+        String text = raw.trim();
+        if (text.isEmpty()) return;
+        BluetoothRemote b = bluetooth;
+        if (b != null && b.isConnected()) {
+            setStatus("Typing “" + text + "” on the TV…");
+            new Thread(() -> {
+                try {
+                    int skipped = b.typeText(text);
+                    setStatus(skipped == 0 ? "Typed “" + text + "” on the TV."
+                            : "Typed “" + text + "”, but " + skipped + " character(s) were left out: over Bluetooth "
+                            + "the TV takes English letters, digits and symbols only.");
+                } catch (RuntimeException e) {
+                    setStatus("Bluetooth stopped while typing. Try again.");
+                }
+            }, "bt-typing").start();
+            return;
+        }
+        if (vestel != null) {
+            setStatus("This TV doesn't take typing over Wi‑Fi. If it has Bluetooth, tap “TV” → "
+                    + "“Connect by Bluetooth instead”, and typing will work.");
+            return;
+        }
+        RemoteClient r = remote;
+        if (r == null) {
+            setStatus("Not connected. Tap “TV” to connect.");
+            return;
+        }
+        if (r.sendText(text)) {
+            setStatus("Typed “" + text + "” on the TV.");
+            return;
+        }
+        int skipped = typeKeys(r, text);
+        setStatus(skipped == 0 ? "Typed “" + text + "” on the TV."
+                : "Typed “" + text + "”, but " + skipped + " character(s) have no key and were left out.");
+    }
+
+    /** Types text key by key, for TVs that haven't told us about an open text field. */
+    private static int typeKeys(RemoteClient r, String text) {
+        KeyCharacterMap map = KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD);
+        int skipped = 0;
+        for (int i = 0; i < text.length(); i++) {
+            KeyEvent[] events = map.getEvents(new char[] {text.charAt(i)});
+            if (events == null || events.length == 0) {
+                skipped++;
+                continue;
+            }
+            for (KeyEvent e : events) {
+                int code = e.getKeyCode();
+                boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
+                if (KeyEvent.isModifierKey(code)) {
+                    // Hold Shift around the letter, like a real keyboard.
+                    r.sendKey(code, down ? RemoteClient.DIRECTION_START_LONG : RemoteClient.DIRECTION_END_LONG);
+                } else if (down) {
+                    r.sendKey(code);
+                }
+            }
+        }
+        return skipped;
     }
 
     private void sendLimited(VestelClient v, int keyCode) {
@@ -573,6 +683,12 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_SPEECH) {
+            List<String> heard = data == null ? null
+                    : data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if (resultCode == RESULT_OK && heard != null && !heard.isEmpty()) typeOnTv(heard.get(0));
+            return;
+        }
         if (requestCode != REQUEST_DISCOVERABLE) return;
         if (resultCode == RESULT_CANCELED) {
             setStatus("The phone needs to be visible for the TV to find it.");
@@ -781,6 +897,20 @@ public class MainActivity extends Activity implements RemoteClient.Listener, Blu
         apps.addView(app("Prime", "https://app.primevideo.com"), weight());
         apps.addView(app("Disney+", "https://www.disneyplus.com"), weight());
         root.addView(apps);
+
+        root.addView(gap(12));
+        root.addView(label("Search by voice: open a search box on the TV, then speak"));
+        LinearLayout typing = row();
+        Button speak = pill("🎤  Speak", ROSSO);
+        speak.setOnClickListener(v -> {
+            v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+            listen();
+        });
+        typing.addView(speak, weight());
+        Button type = pill("⌨  Type", BUTTON);
+        type.setOnClickListener(v -> askForText());
+        typing.addView(type, weight());
+        root.addView(typing);
 
         root.addView(gap(16));
         Button numbers = pill("123  Number pad", BUTTON);
