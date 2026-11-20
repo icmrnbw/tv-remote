@@ -38,6 +38,19 @@ The remote has power, input, mute, settings, the arrow pad with OK, back, home,
 menu, volume and channel (hold to repeat), play/pause, rewind/fast forward, a
 number pad, and shortcuts to YouTube, Netflix, Prime Video and Disney+.
 
+### Voice typing
+
+Open a search box on the TV (for example in YouTube), tap **🎤 Speak** and say
+what you're looking for. The phone's speech recognition turns it into text and
+the app types it on the TV. **⌨ Type** does the same with the phone keyboard.
+
+- Android TV / Google TV: the text goes straight into the focused text field
+  (like Google's TV remote app does); if the TV hasn't reported one, the app
+  presses the keys one by one.
+- Bluetooth mode: the phone types it as a Bluetooth keyboard (US layout, so
+  English letters, digits and symbols only).
+- Vestel and DIAL/DLNA-only TVs have no way to receive text over Wi‑Fi.
+
 ## How it works
 
 On Android TV the app speaks the same protocol as Google's own TV remote

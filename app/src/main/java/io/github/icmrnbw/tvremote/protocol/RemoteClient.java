@@ -22,8 +22,8 @@ public final class RemoteClient {
     public static final int DIRECTION_END_LONG = 2;
     public static final int DIRECTION_SHORT = 3;
 
-    // Features we support: ping, keys, power, volume, app links.
-    private static final long FEATURES = 1 | 2 | 32 | 64 | 512;
+    // Features we support: ping, keys, on-screen keyboard (IME), power, volume, app links.
+    private static final long FEATURES = 1 | 2 | 4 | 32 | 64 | 512;
 
     // RemoteMessage fields
     private static final int CONFIGURE = 1;
@@ -31,6 +31,7 @@ public final class RemoteClient {
     private static final int PING_REQUEST = 8;
     private static final int PING_RESPONSE = 9;
     private static final int KEY_INJECT = 10;
+    private static final int IME_BATCH_EDIT = 21;
     private static final int START = 40;
     private static final int SET_VOLUME_LEVEL = 50;
     private static final int APP_LINK_LAUNCH = 90;
@@ -55,6 +56,9 @@ public final class RemoteClient {
     private volatile SSLSocket socket;
     private volatile boolean closed;
     private long activeFeatures = FEATURES;
+    // Set once the TV reports a focused text field; then text goes straight into it.
+    private volatile long imeCounter = -1;
+    private volatile long imeFieldCounter = -1;
 
     public RemoteClient(String host, ClientIdentity identity, String clientName, Listener listener) {
         this.host = host;
@@ -94,6 +98,27 @@ public final class RemoteClient {
         send(new Proto.Writer().message(KEY_INJECT, new Proto.Writer()
                 .uint(1, keyCode)
                 .uint(2, direction)));
+    }
+
+    /**
+     * Puts {@code text} into the text field focused on the TV, the way the Google TV phone
+     * app does. Returns false when the TV hasn't reported a text field (older TVs, or no
+     * keyboard on screen); the caller then types it key by key instead.
+     */
+    public boolean sendText(String text) {
+        if ((activeFeatures & 4) == 0 || imeCounter < 0 || imeFieldCounter < 0) return false;
+        // Same cursor convention as the androidtvremote2 reference client.
+        int cursor = Math.max(0, text.length() - 1);
+        send(new Proto.Writer().message(IME_BATCH_EDIT, new Proto.Writer()
+                .uint(1, imeCounter)
+                .uint(2, imeFieldCounter)
+                .message(3, new Proto.Writer()
+                        .uint(1, 1)
+                        .message(2, new Proto.Writer()
+                                .uint(1, cursor)
+                                .uint(2, cursor)
+                                .string(3, text)))));
+        return true;
     }
 
     /** Opens a deep link on the TV, e.g. "https://www.youtube.com". */
@@ -152,6 +177,9 @@ public final class RemoteClient {
             send(new Proto.Writer().message(SET_ACTIVE, new Proto.Writer().uint(1, activeFeatures)));
         } else if ((part = msg.message(PING_REQUEST)) != null) {
             send(new Proto.Writer().message(PING_RESPONSE, new Proto.Writer().uint(1, part.uint(1, 0))));
+        } else if ((part = msg.message(IME_BATCH_EDIT)) != null) {
+            imeCounter = part.uint(1, -1);
+            imeFieldCounter = part.uint(2, -1);
         } else if ((part = msg.message(START)) != null) {
             listener.onPowerChanged(part.uint(1, 0) != 0);
         } else if ((part = msg.message(SET_VOLUME_LEVEL)) != null) {

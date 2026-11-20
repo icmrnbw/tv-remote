@@ -159,6 +159,58 @@ final class BluetoothRemote {
         return false;
     }
 
+    /**
+     * Types {@code text} as a US keyboard would. Blocks while typing, so call it off the UI
+     * thread. Returns how many characters had no key (letters outside A–Z, emoji…).
+     */
+    int typeText(String text) {
+        BluetoothDevice device = connected;
+        if (device == null) return text.length();
+        int skipped = 0;
+        byte[] release = new byte[8];
+        for (int i = 0; i < text.length(); i++) {
+            int key = textKey(text.charAt(i));
+            if (key == 0) {
+                skipped++;
+                continue;
+            }
+            byte modifiers = (byte) ((key & SHIFT) != 0 ? 0x02 : 0);
+            hid.sendReport(device, KEYBOARD_REPORT, new byte[] {modifiers, 0, (byte) (key & 0xFF), 0, 0, 0, 0, 0});
+            hid.sendReport(device, KEYBOARD_REPORT, release);
+            try {
+                // TVs drop keys that arrive faster than a person could type them.
+                Thread.sleep(25);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return skipped;
+    }
+
+    private static final int SHIFT = 0x100;
+    private static final String PLAIN = "-=[]\\;'`,./";
+    private static final String SHIFTED = "_+{}|:\"~<>?";
+    private static final int[] PUNCTUATION = {0x2D, 0x2E, 0x2F, 0x30, 0x31, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38};
+    private static final String SHIFTED_DIGITS = "!@#$%^&*()";
+
+    /** The HID usage for a character (plus SHIFT), or 0 if a US keyboard has no key for it. */
+    static int textKey(char c) {
+        if (c >= 'a' && c <= 'z') return 0x04 + (c - 'a');
+        if (c >= 'A' && c <= 'Z') return SHIFT | (0x04 + (c - 'A'));
+        if (c >= '1' && c <= '9') return 0x1E + (c - '1');
+        if (c == '0') return 0x27;
+        if (c == ' ') return 0x2C;
+        if (c == '\n') return 0x28;
+        int i = SHIFTED_DIGITS.indexOf(c);
+        if (i >= 0) return SHIFT | (0x1E + i);
+        i = PLAIN.indexOf(c);
+        if (i >= 0) return PUNCTUATION[i];
+        i = SHIFTED.indexOf(c);
+        if (i >= 0) return SHIFT | PUNCTUATION[i];
+        return 0;
+    }
+
     void stop() {
         if (hid != null) {
             if (connected != null) hid.disconnect(connected);
